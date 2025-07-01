@@ -1,0 +1,456 @@
+!!! 5
+/ 🤖 LLM INSTRUCTIONS:
+/ When filling this template, please:
+/ 1. Replace ALL instances of .llm-fill {{PLACEHOLDER}} with just your content (no div, no class)
+/ 2. Replace {{Client}} in the title with the actual client name
+/ 3. Remove this instruction comment when done
+/ 4. Fill all {{PLACEHOLDER}} values with appropriate content
+/ 5. For server sections, duplicate the server blocks as needed for multiple servers
+%html{lang: "en"}
+  %head
+    %meta{charset: "UTF-8"}
+    %meta{name: "viewport", content: "width=device-width, initial-scale=1.0"}
+    %title {{Client}} Disaster Recovery Runbook
+    %script{src: "https://cdn.tailwindcss.com"}
+    :css
+      @media print {
+          .no-print { display: none !important; }
+          .page-break { page-break-before: always; }
+          .page-break-after { page-break-after: always; }
+          .print-break-inside-avoid { break-inside: avoid; }
+          body { font-size: 12pt; line-height: 1.4; }
+          .print-text-sm { font-size: 10pt; }
+          .print-compact { margin: 0.25rem 0; }
+      }
+      
+      /* 
+      IMPORTANT FOR LLM: When filling this template, replace the ENTIRE 
+      .llm-fill element with just your content.
+      Do NOT keep the llm-fill class or the div wrapper - replace the whole thing.
+      Example: .llm-fill {{SYSTEM_NAME}} becomes: My Production System
+      */
+      .llm-fill {
+          background-color: #fef3c7;
+          border: 2px dashed #f59e0b;
+          border-radius: 0.375rem;
+          padding: 0.5rem;
+          margin: 0.25rem 0;
+          font-style: italic;
+          color: #92400e;
+      }
+      
+      .llm-fill::before {
+          content: "🤖 FILL ME: ";
+          font-weight: bold;
+          color: #d97706;
+      }
+      
+      @media print {
+          .llm-fill {
+              background-color: #f3f4f6;
+              border: 1px solid #6b7280;
+              color: #374151;
+          }
+      }
+
+  %body.bg-gray-50.text-gray-900.font-sans
+    / Header Section
+    .bg-white.shadow-sm.border-b-2.border-blue-600.print-break-inside-avoid
+      .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8.py-6
+        .flex.items-center.justify-between
+          %div
+            %h1.text-3xl.font-bold.text-blue-900 Disaster Recovery Runbook
+            %p.text-lg.text-gray-600.mt-2 Emergency Response and System Recovery Procedures
+          .text-right.print-text-sm
+            .bg-red-100.border.border-red-400.text-red-700.px-4.py-2.rounded
+              %p.font-semibold CONFIDENTIAL
+              %p.text-sm For Authorized Personnel Only
+
+    .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8.py-8.space-y-8
+      
+      / 🤖 LLM: REMOVE THIS ENTIRE SECTION WHEN FILLING THE TEMPLATE
+      .bg-orange-100.border-2.border-orange-400.rounded-lg.p-6.mb-8
+        %h2.text-2xl.font-bold.text-orange-800.mb-4 🤖 Instructions for LLM
+        .text-orange-700.space-y-3
+          %p
+            %strong IMPORTANT:
+            Replace the entire
+            %code .llm-fill {{PLACEHOLDER}}
+            with just your content.
+          .bg-white.p-3.rounded.border
+            %p
+              %strong ❌ Wrong:
+              %code .llm-fill My Production System
+            %p
+              %strong ✅ Correct:
+              %code My Production System
+          %p
+            %strong When done:
+            Remove this entire instruction section and all yellow placeholder boxes.
+      
+      / Document Information
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-blue-800.border-b-2.border-blue-200.pb-2.mb-4 Document Information
+        .grid.grid-cols-1.md:grid-cols-2.gap-4
+          %div
+            %label.font-medium.text-gray-700 System/Service Name:
+            .llm-fill {{SYSTEM_NAME}}
+          %div
+            %label.font-medium.text-gray-700 Document Version:
+            .llm-fill {{DOCUMENT_VERSION}}
+          %div
+            %label.font-medium.text-gray-700 Last Updated:
+            .llm-fill {{LAST_UPDATED_DATE}}
+          %div
+            %label.font-medium.text-gray-700 Next Review Date:
+            .llm-fill {{NEXT_REVIEW_DATE}}
+
+      / Emergency Contacts
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-red-700.border-b-2.border-red-200.pb-2.mb-4 🚨 Emergency Contacts
+        .grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-6
+          .bg-red-50.p-4.rounded-lg.border.border-red-200
+            %h3.font-semibold.text-red-800 Primary On-Call Engineer
+            .space-y-2
+              %div
+                %strong Name:
+                %span.llm-fill {{PRIMARY_ONCALL_NAME}}
+              %div
+                %strong Phone:
+                %span.llm-fill {{PRIMARY_ONCALL_PHONE}}
+              %div
+                %strong Email:
+                %span.llm-fill {{PRIMARY_ONCALL_EMAIL}}
+          .bg-yellow-50.p-4.rounded-lg.border.border-yellow-200
+            %h3.font-semibold.text-yellow-800 Secondary On-Call Engineer
+            .space-y-2
+              %div
+                %strong Name:
+                %span.llm-fill {{SECONDARY_ONCALL_NAME}}
+              %div
+                %strong Phone:
+                %span.llm-fill {{SECONDARY_ONCALL_PHONE}}
+              %div
+                %strong Email:
+                %span.llm-fill {{SECONDARY_ONCALL_EMAIL}}
+          .bg-blue-50.p-4.rounded-lg.border.border-blue-200
+            %h3.font-semibold.text-blue-800 Management Contact
+            .space-y-2
+              %div
+                %strong Name:
+                %span.llm-fill {{MANAGER_NAME}}
+              %div
+                %strong Phone:
+                %span.llm-fill {{MANAGER_PHONE}}
+              %div
+                %strong Email:
+                %span.llm-fill {{MANAGER_EMAIL}}
+
+      / System Overview
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-blue-800.border-b-2.border-blue-200.pb-2.mb-4 System Overview
+        .space-y-4
+          %div
+            %label.font-medium.text-gray-700 System Description:
+            .llm-fill {{SYSTEM_DESCRIPTION}}
+          %div
+            %label.font-medium.text-gray-700 Business Impact:
+            .llm-fill {{BUSINESS_IMPACT}}
+          %div
+            %label.font-medium.text-gray-700 Recovery Time Objective (RTO):
+            .llm-fill {{RTO}}
+          %div
+            %label.font-medium.text-gray-700 Recovery Point Objective (RPO):
+            .llm-fill {{RPO}}
+
+      / Server Infrastructure
+      .page-break
+      .bg-white.rounded-lg.shadow-md.p-6
+        %h2.text-2xl.font-semibold.text-green-800.border-b-2.border-green-200.pb-2.mb-4 Server Infrastructure
+        
+        / Primary Servers
+        .mb-8
+          %h3.text-xl.font-semibold.text-green-700.mb-4 🟢 Primary Servers (Bring up FIRST)
+          .space-y-6
+            .bg-green-50.border.border-green-200.rounded-lg.p-4.print-break-inside-avoid
+              %h4.font-semibold.text-green-800.mb-3 Server 1 - Critical
+              .grid.grid-cols-1.md:grid-cols-2.gap-4
+                %div
+                  %strong Hostname:
+                  %span.llm-fill {{PRIMARY_SERVER1_HOSTNAME}}
+                %div
+                  %strong IP Address:
+                  %span.llm-fill {{PRIMARY_SERVER1_IP}}
+                %div
+                  %strong Role/Function:
+                  %span.llm-fill {{PRIMARY_SERVER1_ROLE}}
+                %div
+                  %strong OS/Version:
+                  %span.llm-fill {{PRIMARY_SERVER1_OS}}
+                %div
+                  %strong Hardware Specs:
+                  %span.llm-fill {{PRIMARY_SERVER1_SPECS}}
+                %div
+                  %strong Location:
+                  %span.llm-fill {{PRIMARY_SERVER1_LOCATION}}
+              .mt-3
+                %strong Key Services:
+                .llm-fill {{PRIMARY_SERVER1_SERVICES}}
+              .mt-3
+                %strong Dependencies:
+                .llm-fill {{PRIMARY_SERVER1_DEPENDENCIES}}
+            
+            / Additional Primary Servers Template
+            .llm-fill {{ADDITIONAL_PRIMARY_SERVERS}}
+
+        / Secondary Servers
+        .mb-8
+          %h3.text-xl.font-semibold.text-yellow-700.mb-4 🟡 Secondary Servers (Bring up SECOND)
+          .space-y-6
+            .bg-yellow-50.border.border-yellow-200.rounded-lg.p-4.print-break-inside-avoid
+              %h4.font-semibold.text-yellow-800.mb-3 Server 2 - Important
+              .grid.grid-cols-1.md:grid-cols-2.gap-4
+                %div
+                  %strong Hostname:
+                  %span.llm-fill {{SECONDARY_SERVER1_HOSTNAME}}
+                %div
+                  %strong IP Address:
+                  %span.llm-fill {{SECONDARY_SERVER1_IP}}
+                %div
+                  %strong Role/Function:
+                  %span.llm-fill {{SECONDARY_SERVER1_ROLE}}
+                %div
+                  %strong OS/Version:
+                  %span.llm-fill {{SECONDARY_SERVER1_OS}}
+                %div
+                  %strong Hardware Specs:
+                  %span.llm-fill {{SECONDARY_SERVER1_SPECS}}
+                %div
+                  %strong Location:
+                  %span.llm-fill {{SECONDARY_SERVER1_LOCATION}}
+              .mt-3
+                %strong Key Services:
+                .llm-fill {{SECONDARY_SERVER1_SERVICES}}
+              .mt-3
+                %strong Dependencies:
+                .llm-fill {{SECONDARY_SERVER1_DEPENDENCIES}}
+            
+            / Additional Secondary Servers Template
+            .llm-fill {{ADDITIONAL_SECONDARY_SERVERS}}
+
+        / Optional/Non-Critical Servers
+        %div
+          %h3.text-xl.font-semibold.text-gray-700.mb-4 ⚪ Optional Servers (Bring up LAST)
+          .space-y-6
+            .bg-gray-50.border.border-gray-200.rounded-lg.p-4.print-break-inside-avoid
+              %h4.font-semibold.text-gray-800.mb-3 Server 3 - Optional
+              .grid.grid-cols-1.md:grid-cols-2.gap-4
+                %div
+                  %strong Hostname:
+                  %span.llm-fill {{OPTIONAL_SERVER1_HOSTNAME}}
+                %div
+                  %strong IP Address:
+                  %span.llm-fill {{OPTIONAL_SERVER1_IP}}
+                %div
+                  %strong Role/Function:
+                  %span.llm-fill {{OPTIONAL_SERVER1_ROLE}}
+                %div
+                  %strong OS/Version:
+                  %span.llm-fill {{OPTIONAL_SERVER1_OS}}
+                %div
+                  %strong Hardware Specs:
+                  %span.llm-fill {{OPTIONAL_SERVER1_SPECS}}
+                %div
+                  %strong Location:
+                  %span.llm-fill {{OPTIONAL_SERVER1_LOCATION}}
+              .mt-3
+                %strong Key Services:
+                .llm-fill {{OPTIONAL_SERVER1_SERVICES}}
+              .mt-3
+                %strong Dependencies:
+                .llm-fill {{OPTIONAL_SERVER1_DEPENDENCIES}}
+            
+            / Additional Optional Servers Template
+            .llm-fill {{ADDITIONAL_OPTIONAL_SERVERS}}
+
+      / Network Configuration
+      .page-break
+      .bg-white.rounded-lg.shadow-md.p-6
+        %h2.text-2xl.font-semibold.text-purple-800.border-b-2.border-purple-200.pb-2.mb-4 Network Configuration
+        .space-y-6
+          .grid.grid-cols-1.md:grid-cols-2.gap-6
+            %div
+              %h3.font-semibold.text-purple-700.mb-3 Network Segments
+              .space-y-2
+                %div
+                  %strong Production Network:
+                  %span.llm-fill {{PROD_NETWORK_RANGE}}
+                %div
+                  %strong Management Network:
+                  %span.llm-fill {{MGMT_NETWORK_RANGE}}
+                %div
+                  %strong DMZ Network:
+                  %span.llm-fill {{DMZ_NETWORK_RANGE}}
+            %div
+              %h3.font-semibold.text-purple-700.mb-3 Key Network Devices
+              .space-y-2
+                %div
+                  %strong Primary Router:
+                  %span.llm-fill {{PRIMARY_ROUTER_IP}}
+                %div
+                  %strong Core Switch:
+                  %span.llm-fill {{CORE_SWITCH_IP}}
+                %div
+                  %strong Firewall:
+                  %span.llm-fill {{FIREWALL_IP}}
+          
+          %div
+            %h3.font-semibold.text-purple-700.mb-3 DNS Configuration
+            .grid.grid-cols-1.md:grid-cols-3.gap-4
+              %div
+                %strong Primary DNS:
+                %span.llm-fill {{PRIMARY_DNS}}
+              %div
+                %strong Secondary DNS:
+                %span.llm-fill {{SECONDARY_DNS}}
+              %div
+                %strong Domain:
+                %span.llm-fill {{DOMAIN_NAME}}
+          
+          %div
+            %h3.font-semibold.text-purple-700.mb-3 Load Balancers / VIPs
+            .llm-fill {{LOAD_BALANCER_CONFIG}}
+          
+          %div
+            %h3.font-semibold.text-purple-700.mb-3 External Dependencies
+            .llm-fill {{EXTERNAL_DEPENDENCIES}}
+
+      / Recovery Procedures
+      .page-break
+      .bg-white.rounded-lg.shadow-md.p-6
+        %h2.text-2xl.font-semibold.text-red-800.border-b-2.border-red-200.pb-2.mb-4 🚨 Recovery Procedures
+        
+        / Step-by-Step Recovery
+        .space-y-8
+          .bg-red-50.border-l-4.border-red-500.p-4.print-break-inside-avoid
+            %h3.text-xl.font-semibold.text-red-800.mb-4 Step 1: Initial Assessment
+            .space-y-3
+              %div
+                %h4.font-semibold.text-red-700 Incident Assessment Checklist:
+                .llm-fill {{INCIDENT_ASSESSMENT_STEPS}}
+              %div
+                %h4.font-semibold.text-red-700 Communication Protocol:
+                .llm-fill {{COMMUNICATION_PROTOCOL}}
+
+          .bg-orange-50.border-l-4.border-orange-500.p-4.print-break-inside-avoid
+            %h3.text-xl.font-semibold.text-orange-800.mb-4 Step 2: Network Recovery
+            .llm-fill {{NETWORK_RECOVERY_STEPS}}
+
+          .bg-green-50.border-l-4.border-green-500.p-4.print-break-inside-avoid
+            %h3.text-xl.font-semibold.text-green-800.mb-4 Step 3: Primary Server Recovery
+            .llm-fill {{PRIMARY_SERVER_RECOVERY_STEPS}}
+
+          .bg-yellow-50.border-l-4.border-yellow-500.p-4.print-break-inside-avoid
+            %h3.text-xl.font-semibold.text-yellow-800.mb-4 Step 4: Secondary Server Recovery
+            .llm-fill {{SECONDARY_SERVER_RECOVERY_STEPS}}
+
+          .bg-blue-50.border-l-4.border-blue-500.p-4.print-break-inside-avoid
+            %h3.text-xl.font-semibold.text-blue-800.mb-4 Step 5: Service Validation
+            .llm-fill {{SERVICE_VALIDATION_STEPS}}
+
+          .bg-purple-50.border-l-4.border-purple-500.p-4.print-break-inside-avoid
+            %h3.text-xl.font-semibold.text-purple-800.mb-4 Step 6: Data Integrity Verification
+            .llm-fill {{DATA_INTEGRITY_VERIFICATION}}
+
+      / Recovery Commands and Scripts
+      .page-break
+      .bg-white.rounded-lg.shadow-md.p-6
+        %h2.text-2xl.font-semibold.text-indigo-800.border-b-2.border-indigo-200.pb-2.mb-4 Recovery Commands & Scripts
+        
+        .space-y-6
+          .bg-gray-900.text-green-400.p-4.rounded-lg.font-mono.text-sm.print-break-inside-avoid
+            %h3.text-white.font-semibold.mb-2 Common Recovery Commands:
+            .llm-fill.bg-gray-800.text-yellow-300.p-2.rounded {{RECOVERY_COMMANDS}}
+          
+          %div
+            %h3.font-semibold.text-indigo-700.mb-3 Key File Locations:
+            .llm-fill {{KEY_FILE_LOCATIONS}}
+          
+          %div
+            %h3.font-semibold.text-indigo-700.mb-3 Backup Locations:
+            .llm-fill {{BACKUP_LOCATIONS}}
+          
+          %div
+            %h3.font-semibold.text-indigo-700.mb-3 Service Start/Stop Commands:
+            .bg-gray-900.text-green-400.p-4.rounded-lg.font-mono.text-sm
+              .llm-fill.bg-gray-800.text-yellow-300.p-2.rounded {{SERVICE_COMMANDS}}
+
+      / Testing and Validation
+      .page-break
+      .bg-white.rounded-lg.shadow-md.p-6
+        %h2.text-2xl.font-semibold.text-green-800.border-b-2.border-green-200.pb-2.mb-4 ✅ Testing and Validation
+        
+        .space-y-6
+          .bg-green-50.border.border-green-200.rounded-lg.p-4.print-break-inside-avoid
+            %h3.font-semibold.text-green-800.mb-3 System Health Checks
+            .llm-fill {{SYSTEM_HEALTH_CHECKS}}
+          
+          .bg-blue-50.border.border-blue-200.rounded-lg.p-4.print-break-inside-avoid
+            %h3.font-semibold.text-blue-800.mb-3 Application Testing
+            .llm-fill {{APPLICATION_TESTING_STEPS}}
+          
+          .bg-purple-50.border.border-purple-200.rounded-lg.p-4.print-break-inside-avoid
+            %h3.font-semibold.text-purple-800.mb-3 Performance Validation
+            .llm-fill {{PERFORMANCE_VALIDATION}}
+          
+          .bg-yellow-50.border.border-yellow-200.rounded-lg.p-4.print-break-inside-avoid
+            %h3.font-semibold.text-yellow-800.mb-3 User Acceptance Testing
+            .llm-fill {{USER_ACCEPTANCE_TESTING}}
+
+      / Post-Recovery Actions
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-teal-800.border-b-2.border-teal-200.pb-2.mb-4 📋 Post-Recovery Actions
+        
+        .space-y-4
+          %div
+            %h3.font-semibold.text-teal-700.mb-2 Documentation Updates:
+            .llm-fill {{DOCUMENTATION_UPDATES}}
+          
+          %div
+            %h3.font-semibold.text-teal-700.mb-2 Lessons Learned:
+            .llm-fill {{LESSONS_LEARNED}}
+          
+          %div
+            %h3.font-semibold.text-teal-700.mb-2 Process Improvements:
+            .llm-fill {{PROCESS_IMPROVEMENTS}}
+          
+          %div
+            %h3.font-semibold.text-teal-700.mb-2 Stakeholder Communication:
+            .llm-fill {{STAKEHOLDER_COMMUNICATION}}
+
+      / Additional Resources
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-gray-800.border-b-2.border-gray-200.pb-2.mb-4 📚 Additional Resources
+        
+        .grid.grid-cols-1.md:grid-cols-2.gap-6
+          %div
+            %h3.font-semibold.text-gray-700.mb-3 Documentation Links:
+            .llm-fill {{DOCUMENTATION_LINKS}}
+          
+          %div
+            %h3.font-semibold.text-gray-700.mb-3 Vendor Support Contacts:
+            .llm-fill {{VENDOR_SUPPORT_CONTACTS}}
+          
+          %div
+            %h3.font-semibold.text-gray-700.mb-3 Monitoring Tools:
+            .llm-fill {{MONITORING_TOOLS}}
+          
+          %div
+            %h3.font-semibold.text-gray-700.mb-3 Escalation Procedures:
+            .llm-fill {{ESCALATION_PROCEDURES}}
+
+    / Footer
+    %footer.bg-gray-800.text-white.py-6.mt-12.no-print
+      .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8.text-center
+        %p &copy; 2024 Disaster Recovery Runbook | Confidential Document
+        %p.text-sm.mt-2 This document contains sensitive information. Handle according to company security policies. 
