@@ -1,0 +1,515 @@
+!!!
+/
+  🤖 LLM INSTRUCTIONS:
+  When filling this template, please:
+  1. Replace ALL instances of <div class="llm-fill">{{PLACEHOLDER}}</div> with just your content (no div, no class)
+  2. Replace {{Date}} in the title with the actual report date
+  3. Remove this instruction comment when done
+  4. Fill all {{PLACEHOLDER}} values with appropriate content
+  5. For client/device/agent sections, duplicate the blocks as needed
+  6. Update chart data in the JavaScript section with real backup metrics
+%html{:lang => "en"}
+  %head
+    %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %meta{:charset => "UTF-8"}/
+    %meta{:content => "width=device-width, initial-scale=1.0", :name => "viewport"}/
+    %title Daily Backup Report - {{REPORT_DATE}}
+    %script{:src => "https://cdn.tailwindcss.com"}
+    %script{:src => "https://cdn.jsdelivr.net/npm/chart.js"}
+    %script{:src => "https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js", :type => "module"}
+    %script{:nomodule => "", :src => "https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"}
+    :css
+      @media print {
+          .no-print { display: none !important; }
+          .page-break { page-break-before: always; }
+          .page-break-after { page-break-after: always; }
+          .print-break-inside-avoid { break-inside: avoid; }
+          body { font-size: 12pt; line-height: 1.4; }
+          .print-text-sm { font-size: 10pt; }
+          .print-compact { margin: 0.25rem 0; }
+      }
+      
+      /* 
+      IMPORTANT FOR LLM: When filling this template, replace the ENTIRE 
+      <div class="llm-fill">{{PLACEHOLDER}}</div> element with just your content.
+      Do NOT keep the llm-fill class or the div wrapper - replace the whole thing.
+      Example: <div class="llm-fill">{{CLIENT_NAME}}</div> becomes: Acme Corporation
+      */
+      .llm-fill {
+          background-color: #fef3c7;
+          border: 2px dashed #f59e0b;
+          border-radius: 0.375rem;
+          padding: 0.5rem;
+          margin: 0.25rem 0;
+          font-style: italic;
+          color: #92400e;
+      }
+      
+      .llm-fill::before {
+          content: "🤖 FILL ME: ";
+          font-weight: bold;
+          color: #d97706;
+      }
+      
+      @media print {
+          .llm-fill {
+              background-color: #f3f4f6;
+              border: 1px solid #6b7280;
+              color: #374151;
+          }
+      }
+
+      .screenshot-preview {
+          max-width: 200px;
+          max-height: 150px;
+          object-fit: cover;
+          border-radius: 0.375rem;
+          border: 2px solid #e5e7eb;
+          transition: transform 0.2s;
+      }
+
+      .screenshot-preview:hover {
+          transform: scale(1.1);
+      }
+
+      .collapsible-content {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease;
+      }
+
+      .collapsible-content.expanded {
+          max-height: 2000px;
+      }
+
+      .rotate-90 {
+          transform: rotate(90deg);
+      }
+  %body.bg-gray-50.text-gray-900.font-sans
+    / Header Section
+    .bg-white.shadow-sm.border-b-2.border-green-600.print-break-inside-avoid
+      .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8.py-6
+        .flex.items-center.justify-between
+          %div
+            %h1.text-3xl.font-bold.text-green-900 Daily Backup Report
+            %p.text-lg.text-gray-600.mt-2 Snapshot Status and Verification Summary
+            %p.text-sm.text-gray-500.mt-1 Server Agents → Backup Devices → Cloud Storage
+          .text-right.print-text-sm
+            .bg-green-100.border.border-green-400.text-green-700.px-4.py-2.rounded
+              %p.font-semibold Report Date
+              %p.text-sm
+                %span.llm-fill {{REPORT_DATE}}
+    .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8.py-8.space-y-8
+      / 🤖 LLM: REMOVE THIS ENTIRE SECTION WHEN FILLING THE TEMPLATE
+      .bg-orange-100.border-2.border-orange-400.rounded-lg.p-6.mb-8
+        %h2.text-2xl.font-bold.text-orange-800.mb-4 🤖 Instructions for LLM
+        .text-orange-700.space-y-3
+          %p
+            %strong IMPORTANT:
+            Replace the entire
+            %code &lt;div class="llm-fill"&gt;{{PLACEHOLDER}}&lt;/div&gt;
+            with just your content.
+          .bg-white.p-3.rounded.border
+            %p
+              %strong ❌ Wrong:
+              %code &lt;div class="llm-fill"&gt;Acme Corporation&lt;/div&gt;
+            %p
+              %strong ✅ Correct:
+              %code Acme Corporation
+          %p
+            %strong When done:
+            Remove this entire instruction section and all yellow placeholder boxes.
+          %p
+            %strong Charts:
+            Update the Chart.js data in the JavaScript section with real backup metrics.
+          %p
+            %strong Screenshots:
+            Replace placeholder image URLs with actual screenshot verification images.
+      / Report Summary
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-green-800.border-b-2.border-green-200.pb-2.mb-4
+          %ion-icon.mr-2{:name => "bar-chart"}>
+          Report Summary
+        .grid.grid-cols-1.md:grid-cols-4.gap-6
+          .bg-green-50.p-4.rounded-lg.border.border-green-200.text-center
+            .text-3xl.font-bold.text-green-600
+              %span.llm-fill {{TOTAL_SUCCESSFUL_SNAPSHOTS}}
+            .text-sm.text-green-700.font-medium Successful Snapshots
+          .bg-red-50.p-4.rounded-lg.border.border-red-200.text-center
+            .text-3xl.font-bold.text-red-600
+              %span.llm-fill {{TOTAL_FAILED_SNAPSHOTS}}
+            .text-sm.text-red-700.font-medium Failed Snapshots
+          .bg-blue-50.p-4.rounded-lg.border.border-blue-200.text-center
+            .text-3xl.font-bold.text-blue-600
+              %span.llm-fill {{TOTAL_CLIENTS}}
+            .text-sm.text-blue-700.font-medium Active Clients
+          .bg-purple-50.p-4.rounded-lg.border.border-purple-200.text-center
+            .text-3xl.font-bold.text-purple-600
+              %span.llm-fill {{TOTAL_DEVICES}}
+            .text-sm.text-purple-700.font-medium Total Devices
+      / Quick Stats Row
+      .grid.grid-cols-1.md:grid-cols-3.gap-6
+        .bg-white.rounded-lg.shadow-md.p-6
+          %h3.text-lg.font-semibold.text-gray-800.mb-3
+            %ion-icon.mr-2{:name => "pie-chart"}>
+            Success Rate
+          .flex.items-center.justify-center
+            %canvas#overallSuccessChart{:height => "200", :width => "200"}
+        .bg-white.rounded-lg.shadow-md.p-6
+          %h3.text-lg.font-semibold.text-gray-800.mb-3
+            %ion-icon.mr-2{:name => "pulse"}>
+            System Health
+          .space-y-2
+            .flex.justify-between
+              %span Agents Online:
+              %span.font-semibold.text-green-600
+                %span.llm-fill> {{AGENTS_ONLINE}}
+                \/
+                %span.llm-fill {{TOTAL_AGENTS}}
+            .flex.justify-between
+              %span Devices Active:
+              %span.font-semibold.text-blue-600
+                %span.llm-fill> {{DEVICES_ACTIVE}}
+                \/
+                %span.llm-fill {{TOTAL_DEVICES}}
+            .flex.justify-between
+              %span Cloud Sync:
+              %span.font-semibold.text-purple-600
+                %span.llm-fill {{CLOUD_SYNC_STATUS}}
+        .bg-white.rounded-lg.shadow-md.p-6
+          %h3.text-lg.font-semibold.text-gray-800.mb-3
+            %ion-icon.mr-2{:name => "time"}>
+            Today's Activity
+          .space-y-2
+            .flex.justify-between
+              %span Snapshots Created:
+              %span.font-semibold.text-green-600
+                %span.llm-fill {{SNAPSHOTS_TODAY}}
+            .flex.justify-between
+              %span Data Transferred:
+              %span.font-semibold.text-blue-600
+                %span.llm-fill {{DATA_TRANSFERRED_TODAY}}
+            .flex.justify-between
+              %span Avg Snapshot Size:
+              %span.font-semibold.text-purple-600
+                %span.llm-fill {{AVG_SNAPSHOT_SIZE}}
+      / Client Reports
+      .space-y-6
+        %h2.text-2xl.font-semibold.text-blue-800.border-b-2.border-blue-200.pb-2
+          %ion-icon.mr-2{:name => "people"}>
+          Client Reports
+        / Client 1 Template
+        .bg-white.rounded-lg.shadow-md.overflow-hidden.print-break-inside-avoid
+          .bg-blue-50.border-b.border-blue-200.p-4
+            .flex.items-center.justify-between.cursor-pointer{:onclick => "toggleSection('client1')"}
+              .flex.items-center
+                %ion-icon#client1-arrow.mr-2.transition-transform{:name => "chevron-forward"}
+                %ion-icon.mr-3.text-blue-600{:name => "business"}
+                %h3.text-xl.font-semibold.text-blue-800
+                  %span.llm-fill {{CLIENT1_NAME}}
+              .flex.space-x-4
+                .bg-green-100.px-3.py-1.rounded.text-green-700.font-medium
+                  %ion-icon.mr-1{:name => "checkmark-circle"}
+                  %span.llm-fill {{CLIENT1_SUCCESSFUL_SNAPSHOTS}}
+                  Snapshots
+                .bg-red-100.px-3.py-1.rounded.text-red-700.font-medium
+                  %ion-icon.mr-1{:name => "close-circle"}
+                  %span.llm-fill {{CLIENT1_FAILED_SNAPSHOTS}}
+                  Failed
+          #client1-content.collapsible-content
+            .p-6.space-y-6
+              / Device 1
+              .bg-gray-50.rounded-lg.p-4.border.border-gray-200
+                .flex.items-center.justify-between.mb-4
+                  .flex.items-center
+                    %ion-icon.mr-3.text-gray-600.text-xl{:name => "hardware-chip"}
+                    %div
+                      %h4.text-lg.font-semibold.text-gray-800
+                        %span.llm-fill {{CLIENT1_DEVICE1_NAME}}
+                      %p.text-sm.text-gray-600 Backup Target Device
+                  .text-right.text-sm.text-gray-600
+                    %div
+                      Storage:
+                      %span.llm-fill {{CLIENT1_DEVICE1_STORAGE_USED}}
+                      \/
+                      %span.llm-fill {{CLIENT1_DEVICE1_STORAGE_TOTAL}}
+                    %div
+                      Location:
+                      %span.llm-fill {{CLIENT1_DEVICE1_LOCATION}}
+                / Storage Usage Chart
+                .mb-4.flex.justify-center
+                  %canvas#client1Device1StorageChart{:height => "125", :width => "250"}
+                / Servers with Agents backing up to this device
+                .space-y-4
+                  %h5.font-semibold.text-gray-700.border-b.border-gray-300.pb-2
+                    %ion-icon.mr-2{:name => "server"}>
+                    Servers Backing Up to This Device
+                  / Server/Agent 1
+                  .bg-white.rounded.p-4.border.border-gray-300
+                    .flex.items-start.justify-between
+                      .flex-1
+                        .flex.items-center.mb-2
+                          %ion-icon.mr-2.text-indigo-600.text-lg{:name => "desktop"}
+                          %div
+                            %h6.font-semibold.text-indigo-800
+                              %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_SERVER_NAME}}
+                            %p.text-xs.text-gray-600
+                              Agent:
+                              %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_NAME}}
+                        .grid.grid-cols-2.gap-4.text-sm
+                          %div
+                            %span.text-gray-600 Snapshots Today:
+                            %span.font-medium.text-green-600.ml-2
+                              %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_SNAPSHOT_COUNT}}
+                          %div
+                            %span.text-gray-600 Last Snapshot:
+                            %span.font-medium.ml-2
+                              %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_LAST_BACKUP_TIME}}
+                          %div
+                            %span.text-gray-600 Agent Status:
+                            %span.font-medium.text-green-600.ml-2
+                              %ion-icon.mr-1{:name => "checkmark-circle"}
+                              %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_STATUS}}
+                          %div
+                            %span.text-gray-600 Total Size:
+                            %span.font-medium.ml-2
+                              %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_TOTAL_SIZE}}
+                          %div
+                            %span.text-gray-600 Cloud Sync:
+                            %span.font-medium.text-blue-600.ml-2
+                              %ion-icon.mr-1{:name => "cloud-upload"}
+                              %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_CLOUD_STATUS}}
+                          %div
+                            %span.text-gray-600 Server IP:
+                            %span.font-medium.ml-2
+                              %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_SERVER_IP}}
+                      .ml-4
+                        .text-center
+                          .text-xs.text-gray-600.mb-2 Latest Screenshot
+                          %img.screenshot-preview{:alt => "Screenshot verification", :onclick => "openScreenshot('sampleScreenshot.png')", :src => "sampleScreenshot.png"}/
+                          .text-xs.text-gray-500.mt-1
+                            %span.llm-fill {{CLIENT1_DEVICE1_AGENT1_SCREENSHOT_TIME}}
+                  / Additional servers/agents template
+                  .llm-fill {{CLIENT1_DEVICE1_ADDITIONAL_AGENTS}}
+              / Additional devices template
+              .llm-fill {{CLIENT1_ADDITIONAL_DEVICES}}
+        / Additional clients template
+        .llm-fill {{ADDITIONAL_CLIENTS}}
+      / Failed Snapshots Section
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-red-800.border-b-2.border-red-200.pb-2.mb-4
+          %ion-icon.mr-2{:name => "warning"}>
+          Failed Snapshots Requiring Attention
+        .space-y-4
+          .llm-fill {{FAILED_SNAPSHOT_DETAILS}}
+      / Storage Trends
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-purple-800.border-b-2.border-purple-200.pb-2.mb-4
+          %ion-icon.mr-2{:name => "trending-up"}>
+          Storage Trends
+        .grid.grid-cols-1.lg:grid-cols-2.gap-6
+          %div
+            %h3.text-lg.font-semibold.text-gray-800.mb-3 Storage Usage by Client
+            %canvas#storageByClientChart{:height => "200", :width => "400"}
+          %div
+            %h3.text-lg.font-semibold.text-gray-800.mb-3 Daily Backup Volume
+            %canvas#dailyVolumeChart{:height => "200", :width => "400"}
+      / Report Notes
+      .bg-white.rounded-lg.shadow-md.p-6.print-break-inside-avoid
+        %h2.text-2xl.font-semibold.text-gray-800.border-b-2.border-gray-200.pb-2.mb-4
+          %ion-icon.mr-2{:name => "document-text"}>
+          Report Notes &amp; Recommendations
+        .space-y-4
+          %div
+            %h3.font-semibold.text-gray-700.mb-2 Issues Identified:
+            .llm-fill {{IDENTIFIED_ISSUES}}
+          %div
+            %h3.font-semibold.text-gray-700.mb-2 Recommendations:
+            .llm-fill {{RECOMMENDATIONS}}
+          %div
+            %h3.font-semibold.text-gray-700.mb-2 Action Items:
+            .llm-fill {{ACTION_ITEMS}}
+    / Screenshot Modal
+    #screenshotModal.fixed.inset-0.bg-black.bg-opacity-75.flex.items-center.justify-center.z-50.hidden.no-print
+      .max-w-4xl.max-h-full.p-4
+        %img#modalImage.max-w-full.max-h-full.rounded-lg{:alt => "Screenshot", :src => ""}/
+        %button.absolute.top-4.right-4.text-white.text-2xl.hover:text-gray-300{:onclick => "closeScreenshot()"}
+          %ion-icon.text-3xl{:name => "close"}
+    / Footer
+    %footer.bg-gray-800.text-white.py-6.mt-12.no-print
+      .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8.text-center
+        %p
+          © 2024 Daily Backup Report | Generated:
+          %span.llm-fill {{GENERATION_TIMESTAMP}}
+        %p.text-sm.mt-2 Automated backup monitoring and verification system
+    / JavaScript
+    :javascript
+      // Toggle collapsible sections
+      function toggleSection(sectionId) {
+          const content = document.getElementById(sectionId + '-content');
+          const arrow = document.getElementById(sectionId + '-arrow');
+          
+          if (content.classList.contains('expanded')) {
+              content.classList.remove('expanded');
+              arrow.style.transform = 'rotate(0deg)';
+          } else {
+              content.classList.add('expanded');
+              arrow.style.transform = 'rotate(90deg)';
+          }
+      }
+
+      // Screenshot modal functions
+      function openScreenshot(src) {
+          document.getElementById('modalImage').src = src;
+          document.getElementById('screenshotModal').classList.remove('hidden');
+      }
+
+      function closeScreenshot() {
+          document.getElementById('screenshotModal').classList.add('hidden');
+      }
+
+      // Close modal on escape key
+      document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+              closeScreenshot();
+          }
+      });
+
+      // Chart.js configurations
+      window.onload = function() {
+          // Overall Success Rate Chart (Compact)
+          const overallCtx = document.getElementById('overallSuccessChart').getContext('2d');
+          new Chart(overallCtx, {
+              type: 'doughnut',
+              data: {
+                  labels: ['Successful', 'Failed'],
+                  datasets: [{
+                      data: [
+                          // 🤖 LLM: Replace these values with actual snapshot statistics
+                          parseInt('{{TOTAL_SUCCESSFUL_SNAPSHOTS}}') || 85,
+                          parseInt('{{TOTAL_FAILED_SNAPSHOTS}}') || 5
+                      ],
+                      backgroundColor: ['#10b981', '#ef4444'],
+                      borderWidth: 2,
+                      borderColor: '#ffffff'
+                  }]
+              },
+              options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                      legend: {
+                          position: 'bottom',
+                          labels: {
+                              font: {
+                                  size: 12
+                              }
+                          }
+                      }
+                  }
+              }
+          });
+
+          // Storage by Client Chart
+          const storageCtx = document.getElementById('storageByClientChart').getContext('2d');
+          new Chart(storageCtx, {
+              type: 'bar',
+              data: {
+                  labels: [
+                      // 🤖 LLM: Replace with actual client names
+                      '{{CLIENT1_NAME}}' || 'Client 1',
+                      '{{CLIENT2_NAME}}' || 'Client 2',
+                      '{{CLIENT3_NAME}}' || 'Client 3'
+                  ],
+                  datasets: [{
+                      label: 'Storage Used (GB)',
+                      data: [
+                          // 🤖 LLM: Replace with actual storage usage data
+                          parseInt('{{CLIENT1_TOTAL_STORAGE}}') || 150,
+                          parseInt('{{CLIENT2_TOTAL_STORAGE}}') || 230,
+                          parseInt('{{CLIENT3_TOTAL_STORAGE}}') || 180
+                      ],
+                      backgroundColor: '#8b5cf6',
+                      borderColor: '#7c3aed',
+                      borderWidth: 1
+                  }]
+              },
+              options: {
+                  responsive: true,
+                  scales: {
+                      y: {
+                          beginAtZero: true,
+                          title: {
+                              display: true,
+                              text: 'Storage (GB)'
+                          }
+                      }
+                  }
+              }
+          });
+
+          // Daily Volume Chart
+          const volumeCtx = document.getElementById('dailyVolumeChart').getContext('2d');
+          new Chart(volumeCtx, {
+              type: 'line',
+              data: {
+                  labels: ['6 days ago', '5 days ago', '4 days ago', '3 days ago', '2 days ago', 'Yesterday', 'Today'],
+                  datasets: [{
+                      label: 'Backup Volume (GB)',
+                      data: [
+                          // 🤖 LLM: Replace with actual daily backup volume data
+                          45, 52, 48, 61, 55, 58, parseInt('{{TODAY_BACKUP_VOLUME}}') || 62
+                      ],
+                      borderColor: '#3b82f6',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      tension: 0.4,
+                      fill: true
+                  }]
+              },
+              options: {
+                  responsive: true,
+                  scales: {
+                      y: {
+                          beginAtZero: true,
+                          title: {
+                              display: true,
+                              text: 'Volume (GB)'
+                          }
+                      }
+                  }
+              }
+          });
+
+          // Storage usage charts for devices (example for client1device1)
+          const device1StorageCtx = document.getElementById('client1Device1StorageChart').getContext('2d');
+          new Chart(device1StorageCtx, {
+              type: 'doughnut',
+              data: {
+                  labels: ['Used', 'Free'],
+                  datasets: [{
+                      data: [
+                          // 🤖 LLM: Replace with actual storage data for this device
+                          parseInt('{{CLIENT1_DEVICE1_STORAGE_USED_GB}}') || 75,
+                          parseInt('{{CLIENT1_DEVICE1_STORAGE_FREE_GB}}') || 125
+                      ],
+                      backgroundColor: ['#f59e0b', '#e5e7eb'],
+                      borderWidth: 2,
+                      borderColor: '#ffffff'
+                  }]
+              },
+              options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                      legend: {
+                          position: 'bottom',
+                          labels: {
+                              font: {
+                                  size: 10
+                              }
+                          }
+                      }
+                  }
+              }
+          });
+      };

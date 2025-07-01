@@ -1,0 +1,29 @@
+MONTHLY REPORT TEMPLATE
+
+CRITICAL INSTRUCTIONS FOR REPORT GENERATION:
+- USE THIS TEMPLATE AS-IS - Do NOT modify the structure, format, or organization
+- FILL IN the placeholder sections marked with [brackets] by asking the user for specific information
+- DO NOT make assumptions or fill in placeholder content without user input
+- DO NOT change the template structure, headings, or formatting
+- Include actual data from the Slide system when available through other tools
+- STICK TO THE TEMPLATE - your job is to populate it with user-provided information, not redesign it
+- DO NOT USE EMOJI - Please use the ionicons library instead
+- The calendar grid is the central feature - show snapshot counts and retention info for each day
+- CONVERT ALL TIMEZONES to the users timezone. If unsure use America/New_York as the time zone
+- VERY IMPORTANT BE SURE TO INCLUDE ALL THE RELEVANT DAYS AND SNAPSHOT DATA for the entire month
+- Show retention policy impacts - which snapshots were deleted and why
+- Calendar should be expandable for screen viewing but print full details when printed
+- Include monthly trends and patterns in backup behavior
+- Highlight any days with issues or unusual activity
+
+MONTHLY REPORT FOCUS:
+- Calendar grid showing daily snapshot activity
+- Retention policy impact and deleted snapshots
+- Monthly trends and patterns
+- Client performance over the month
+- Storage utilization trends
+- Failure patterns and recovery actions
+
+<TEMPLATE></TEMPLATE>
+
+DO NOT change, reorganize, or "improve" this template. Your role is to gather information from the user and populate the existing structure exactly as designed. 
