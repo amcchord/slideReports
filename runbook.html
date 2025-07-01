@@ -1,556 +1,483 @@
 <!DOCTYPE html>
+<!-- 
+🤖 LLM INSTRUCTIONS:
+When filling this template, please:
+1. Replace ALL instances of <div class="llm-fill">{{PLACEHOLDER}}</div> with just your content (no div, no class)
+2. Replace {{Client}} in the title with the actual client name
+3. Remove this instruction comment when done
+4. Fill all {{PLACEHOLDER}} values with appropriate content
+5. For server sections, duplicate the server blocks as needed for multiple servers
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Disaster Recovery Runbook</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-    <link href="https://raw.githubusercontent.com/amcchord/slideReports/main/runbook-styles.css" rel="stylesheet">
-
+    <title>{{Client}} Disaster Recovery Runbook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+            .page-break-after { page-break-after: always; }
+            .print-break-inside-avoid { break-inside: avoid; }
+            body { font-size: 12pt; line-height: 1.4; }
+            .print-text-sm { font-size: 10pt; }
+            .print-compact { margin: 0.25rem 0; }
+        }
+        
+        /* 
+        IMPORTANT FOR LLM: When filling this template, replace the ENTIRE 
+        <div class="llm-fill">{{PLACEHOLDER}}</div> element with just your content.
+        Do NOT keep the llm-fill class or the div wrapper - replace the whole thing.
+        Example: <div class="llm-fill">{{SYSTEM_NAME}}</div> becomes: My Production System
+        */
+        .llm-fill {
+            background-color: #fef3c7;
+            border: 2px dashed #f59e0b;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            font-style: italic;
+            color: #92400e;
+        }
+        
+        .llm-fill::before {
+            content: "🤖 FILL ME: ";
+            font-weight: bold;
+            color: #d97706;
+        }
+        
+        @media print {
+            .llm-fill {
+                background-color: #f3f4f6;
+                border: 1px solid #6b7280;
+                color: #374151;
+            }
+        }
+    </style>
 </head>
-<body>
-    <div class="container-fluid">
-        <!-- Header -->
-        <div class="row">
-            <div class="col-12">
-                <div class="text-center py-4 bg-primary">
-                    <h1><i class="fas fa-shield-alt me-2"></i>Disaster Recovery Runbook</h1>
-                    <p class="mb-0">Critical System Recovery Procedures</p>
+<body class="bg-gray-50 text-gray-900 font-sans">
+    <!-- Header Section -->
+    <div class="bg-white shadow-sm border-b-2 border-blue-600 print-break-inside-avoid">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-blue-900">Disaster Recovery Runbook</h1>
+                    <p class="text-lg text-gray-600 mt-2">Emergency Response and System Recovery Procedures</p>
+                </div>
+                <div class="text-right print-text-sm">
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
+                        <p class="font-semibold">CONFIDENTIAL</p>
+                        <p class="text-sm">For Authorized Personnel Only</p>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Executive Summary -->
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-clipboard-list me-2"></i>Executive Summary</h2>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        <!-- 🤖 LLM: REMOVE THIS ENTIRE SECTION WHEN FILLING THE TEMPLATE -->
+        <div class="bg-orange-100 border-2 border-orange-400 rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-orange-800 mb-4">🤖 Instructions for LLM</h2>
+            <div class="text-orange-700 space-y-3">
+                <p><strong>IMPORTANT:</strong> Replace the entire <code>&lt;div class="llm-fill"&gt;{{PLACEHOLDER}}&lt;/div&gt;</code> with just your content.</p>
+                <div class="bg-white p-3 rounded border">
+                    <p><strong>❌ Wrong:</strong> <code>&lt;div class="llm-fill"&gt;My Production System&lt;/div&gt;</code></p>
+                    <p><strong>✅ Correct:</strong> <code>My Production System</code></p>
                 </div>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="llm-placeholder">
-                            Brief overview of the disaster recovery scenario and affected systems
-                        </div>
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <strong>Incident Type:</strong>
-                                <div class="llm-placeholder">Type of disaster (hardware failure, cyber attack, natural disaster, etc.)</div>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Estimated Recovery Time:</strong>
-                                <div class="llm-placeholder">Expected total recovery duration</div>
-                            </div>
-                        </div>
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <strong>Business Impact:</strong>
-                                <div class="llm-placeholder">Critical/High/Medium/Low - Description of business impact</div>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Last Updated:</strong>
-                                <div class="llm-placeholder">Date and time of last runbook update</div>
-                            </div>
-                        </div>
-                    </div>
+                <p><strong>When done:</strong> Remove this entire instruction section and all yellow placeholder boxes.</p>
+            </div>
+        </div>
+        
+        <!-- Document Information -->
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-blue-800 border-b-2 border-blue-200 pb-2 mb-4">Document Information</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="font-medium text-gray-700">System/Service Name:</label>
+                    <div class="llm-fill">{{SYSTEM_NAME}}</div>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Document Version:</label>
+                    <div class="llm-fill">{{DOCUMENT_VERSION}}</div>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Last Updated:</label>
+                    <div class="llm-fill">{{LAST_UPDATED_DATE}}</div>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Next Review Date:</label>
+                    <div class="llm-fill">{{NEXT_REVIEW_DATE}}</div>
                 </div>
             </div>
         </div>
 
         <!-- Emergency Contacts -->
-        <div class="row mt-4 emergency-contacts-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-phone me-2"></i>Emergency Contacts</h2>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="contact-card">
-                            <h5><i class="fas fa-user-tie me-2"></i>Incident Commander</h5>
-                            <div class="llm-placeholder">Primary decision maker name</div>
-                            <strong>Phone:</strong> <span class="llm-placeholder">Primary phone number</span><br>
-                            <strong>Alt Phone:</strong> <span class="llm-placeholder">Secondary phone number</span><br>
-                            <strong>Email:</strong> <span class="llm-placeholder">Email address</span>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="contact-card">
-                            <h5><i class="fas fa-tools me-2"></i>Technical Lead</h5>
-                            <div class="llm-placeholder">Technical lead name</div>
-                            <strong>Phone:</strong> <span class="llm-placeholder">Primary phone number</span><br>
-                            <strong>Alt Phone:</strong> <span class="llm-placeholder">Secondary phone number</span><br>
-                            <strong>Email:</strong> <span class="llm-placeholder">Email address</span>
-                        </div>
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-red-700 border-b-2 border-red-200 pb-2 mb-4">🚨 Emergency Contacts</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <h3 class="font-semibold text-red-800">Primary On-Call Engineer</h3>
+                    <div class="space-y-2">
+                        <div><strong>Name:</strong> <span class="llm-fill">{{PRIMARY_ONCALL_NAME}}</span></div>
+                        <div><strong>Phone:</strong> <span class="llm-fill">{{PRIMARY_ONCALL_PHONE}}</span></div>
+                        <div><strong>Email:</strong> <span class="llm-fill">{{PRIMARY_ONCALL_EMAIL}}</span></div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="contact-card">
-                            <h5><i class="fas fa-network-wired me-2"></i>Network Administrator</h5>
-                            <div class="llm-placeholder">Network admin name</div>
-                            <strong>Phone:</strong> <span class="llm-placeholder">Primary phone number</span><br>
-                            <strong>Email:</strong> <span class="llm-placeholder">Email address</span>
-                        </div>
+                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <h3 class="font-semibold text-yellow-800">Secondary On-Call Engineer</h3>
+                    <div class="space-y-2">
+                        <div><strong>Name:</strong> <span class="llm-fill">{{SECONDARY_ONCALL_NAME}}</span></div>
+                        <div><strong>Phone:</strong> <span class="llm-fill">{{SECONDARY_ONCALL_PHONE}}</span></div>
+                        <div><strong>Email:</strong> <span class="llm-fill">{{SECONDARY_ONCALL_EMAIL}}</span></div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="contact-card">
-                            <h5><i class="fas fa-building me-2"></i>Management/Stakeholders</h5>
-                            <div class="llm-placeholder">Management contact name</div>
-                            <strong>Phone:</strong> <span class="llm-placeholder">Phone number</span><br>
-                            <strong>Email:</strong> <span class="llm-placeholder">Email address</span>
-                        </div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 class="font-semibold text-blue-800">Management Contact</h3>
+                    <div class="space-y-2">
+                        <div><strong>Name:</strong> <span class="llm-fill">{{MANAGER_NAME}}</span></div>
+                        <div><strong>Phone:</strong> <span class="llm-fill">{{MANAGER_PHONE}}</span></div>
+                        <div><strong>Email:</strong> <span class="llm-fill">{{MANAGER_EMAIL}}</span></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Server Inventory -->
-        <div class="row mt-4 server-inventory-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-server me-2"></i>Server Inventory & Configuration</h2>
+        <!-- System Overview -->
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-blue-800 border-b-2 border-blue-200 pb-2 mb-4">System Overview</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="font-medium text-gray-700">System Description:</label>
+                    <div class="llm-fill">{{SYSTEM_DESCRIPTION}}</div>
                 </div>
-                
-                <!-- Server 1 -->
-                <div class="server-card">
-                    <div class="server-header">
-                        <h4><i class="fas fa-desktop me-2"></i>Primary Server</h4>
-                        <span class="badge bg-danger">CRITICAL</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong>Server Name:</strong>
-                                <div class="llm-placeholder">Primary server hostname</div>
-                                <strong>IP Address:</strong>
-                                <div class="llm-placeholder">Primary server IP address</div>
-                                <strong>Role/Function:</strong>
-                                <div class="llm-placeholder">Description of server role and critical services</div>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Operating System:</strong>
-                                <div class="llm-placeholder">OS type and version</div>
-                                <strong>Hardware Specs:</strong>
-                                <div class="llm-placeholder">CPU, RAM, Storage specifications</div>
-                                <strong>Location:</strong>
-                                <div class="llm-placeholder">Physical/Cloud location</div>
-                            </div>
+                <div>
+                    <label class="font-medium text-gray-700">Business Impact:</label>
+                    <div class="llm-fill">{{BUSINESS_IMPACT}}</div>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Recovery Time Objective (RTO):</label>
+                    <div class="llm-fill">{{RTO}}</div>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Recovery Point Objective (RPO):</label>
+                    <div class="llm-fill">{{RPO}}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Server Infrastructure -->
+        <div class="page-break"></div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold text-green-800 border-b-2 border-green-200 pb-2 mb-4">Server Infrastructure</h2>
+            
+            <!-- Primary Servers -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-green-700 mb-4">🟢 Primary Servers (Bring up FIRST)</h3>
+                <div class="space-y-6">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 print-break-inside-avoid">
+                        <h4 class="font-semibold text-green-800 mb-3">Server 1 - Critical</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><strong>Hostname:</strong> <span class="llm-fill">{{PRIMARY_SERVER1_HOSTNAME}}</span></div>
+                            <div><strong>IP Address:</strong> <span class="llm-fill">{{PRIMARY_SERVER1_IP}}</span></div>
+                            <div><strong>Role/Function:</strong> <span class="llm-fill">{{PRIMARY_SERVER1_ROLE}}</span></div>
+                            <div><strong>OS/Version:</strong> <span class="llm-fill">{{PRIMARY_SERVER1_OS}}</span></div>
+                            <div><strong>Hardware Specs:</strong> <span class="llm-fill">{{PRIMARY_SERVER1_SPECS}}</span></div>
+                            <div><strong>Location:</strong> <span class="llm-fill">{{PRIMARY_SERVER1_LOCATION}}</span></div>
                         </div>
                         <div class="mt-3">
-                            <strong>Critical Services:</strong>
-                            <div class="llm-placeholder">List of critical services running on this server</div>
+                            <strong>Key Services:</strong>
+                            <div class="llm-fill">{{PRIMARY_SERVER1_SERVICES}}</div>
                         </div>
                         <div class="mt-3">
                             <strong>Dependencies:</strong>
-                            <div class="llm-placeholder">Other systems/services this server depends on</div>
+                            <div class="llm-fill">{{PRIMARY_SERVER1_DEPENDENCIES}}</div>
                         </div>
+                    </div>
+                    
+                    <!-- Additional Primary Servers Template -->
+                    <div class="llm-fill">
+                        {{ADDITIONAL_PRIMARY_SERVERS}}
                     </div>
                 </div>
+            </div>
 
-                <!-- Server 2 -->
-                <div class="server-card">
-                    <div class="server-header">
-                        <h4><i class="fas fa-desktop me-2"></i>Secondary Server</h4>
-                        <span class="badge bg-warning">HIGH</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong>Server Name:</strong>
-                                <div class="llm-placeholder">Secondary server hostname</div>
-                                <strong>IP Address:</strong>
-                                <div class="llm-placeholder">Secondary server IP address</div>
-                                <strong>Role/Function:</strong>
-                                <div class="llm-placeholder">Description of server role and services</div>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Operating System:</strong>
-                                <div class="llm-placeholder">OS type and version</div>
-                                <strong>Hardware Specs:</strong>
-                                <div class="llm-placeholder">CPU, RAM, Storage specifications</div>
-                                <strong>Location:</strong>
-                                <div class="llm-placeholder">Physical/Cloud location</div>
-                            </div>
+            <!-- Secondary Servers -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-yellow-700 mb-4">🟡 Secondary Servers (Bring up SECOND)</h3>
+                <div class="space-y-6">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 print-break-inside-avoid">
+                        <h4 class="font-semibold text-yellow-800 mb-3">Server 2 - Important</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><strong>Hostname:</strong> <span class="llm-fill">{{SECONDARY_SERVER1_HOSTNAME}}</span></div>
+                            <div><strong>IP Address:</strong> <span class="llm-fill">{{SECONDARY_SERVER1_IP}}</span></div>
+                            <div><strong>Role/Function:</strong> <span class="llm-fill">{{SECONDARY_SERVER1_ROLE}}</span></div>
+                            <div><strong>OS/Version:</strong> <span class="llm-fill">{{SECONDARY_SERVER1_OS}}</span></div>
+                            <div><strong>Hardware Specs:</strong> <span class="llm-fill">{{SECONDARY_SERVER1_SPECS}}</span></div>
+                            <div><strong>Location:</strong> <span class="llm-fill">{{SECONDARY_SERVER1_LOCATION}}</span></div>
                         </div>
                         <div class="mt-3">
-                            <strong>Critical Services:</strong>
-                            <div class="llm-placeholder">List of services running on this server</div>
+                            <strong>Key Services:</strong>
+                            <div class="llm-fill">{{SECONDARY_SERVER1_SERVICES}}</div>
                         </div>
                         <div class="mt-3">
                             <strong>Dependencies:</strong>
-                            <div class="llm-placeholder">Other systems/services this server depends on</div>
+                            <div class="llm-fill">{{SECONDARY_SERVER1_DEPENDENCIES}}</div>
                         </div>
+                    </div>
+                    
+                    <!-- Additional Secondary Servers Template -->
+                    <div class="llm-fill">
+                        {{ADDITIONAL_SECONDARY_SERVERS}}
                     </div>
                 </div>
+            </div>
 
-                <!-- Additional Servers Template -->
-                <div class="server-card">
-                    <div class="server-header">
-                        <h4><i class="fas fa-desktop me-2"></i>Additional Server(s)</h4>
-                        <span class="badge bg-info">MEDIUM</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="llm-placeholder">
-                            Repeat server configuration details for any additional servers in the environment
+            <!-- Optional/Non-Critical Servers -->
+            <div>
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">⚪ Optional Servers (Bring up LAST)</h3>
+                <div class="space-y-6">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 print-break-inside-avoid">
+                        <h4 class="font-semibold text-gray-800 mb-3">Server 3 - Optional</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><strong>Hostname:</strong> <span class="llm-fill">{{OPTIONAL_SERVER1_HOSTNAME}}</span></div>
+                            <div><strong>IP Address:</strong> <span class="llm-fill">{{OPTIONAL_SERVER1_IP}}</span></div>
+                            <div><strong>Role/Function:</strong> <span class="llm-fill">{{OPTIONAL_SERVER1_ROLE}}</span></div>
+                            <div><strong>OS/Version:</strong> <span class="llm-fill">{{OPTIONAL_SERVER1_OS}}</span></div>
+                            <div><strong>Hardware Specs:</strong> <span class="llm-fill">{{OPTIONAL_SERVER1_SPECS}}</span></div>
+                            <div><strong>Location:</strong> <span class="llm-fill">{{OPTIONAL_SERVER1_LOCATION}}</span></div>
                         </div>
+                        <div class="mt-3">
+                            <strong>Key Services:</strong>
+                            <div class="llm-fill">{{OPTIONAL_SERVER1_SERVICES}}</div>
+                        </div>
+                        <div class="mt-3">
+                            <strong>Dependencies:</strong>
+                            <div class="llm-fill">{{OPTIONAL_SERVER1_DEPENDENCIES}}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Optional Servers Template -->
+                    <div class="llm-fill">
+                        {{ADDITIONAL_OPTIONAL_SERVERS}}
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Network Configuration -->
-        <div class="row mt-4 network-config-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-network-wired me-2"></i>Network Configuration</h2>
-                </div>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>Network Details</h5>
-                                <strong>Primary Network:</strong>
-                                <div class="llm-placeholder">Primary network range (e.g., 192.168.1.0/24)</div>
-                                <strong>Gateway:</strong>
-                                <div class="llm-placeholder">Default gateway IP address</div>
-                                <strong>DNS Servers:</strong>
-                                <div class="llm-placeholder">Primary and secondary DNS server IPs</div>
-                                <strong>DHCP Range:</strong>
-                                <div class="llm-placeholder">DHCP range if applicable</div>
-                            </div>
-                            <div class="col-md-6">
-                                <h5>External Connectivity</h5>
-                                <strong>ISP/Provider:</strong>
-                                <div class="llm-placeholder">Internet service provider name</div>
-                                <strong>External IP:</strong>
-                                <div class="llm-placeholder">Public IP address</div>
-                                <strong>Firewall/Router:</strong>
-                                <div class="llm-placeholder">Firewall device IP and model</div>
-                                <strong>VPN Configuration:</strong>
-                                <div class="llm-placeholder">VPN settings if applicable</div>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <h5>Network Diagram</h5>
-                            <div class="network-diagram">
-                                <div class="llm-placeholder">
-                                    ASCII network diagram or description of network topology showing server connections, switches, routers, and internet connectivity
-                                </div>
-                            </div>
+        <div class="page-break"></div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold text-purple-800 border-b-2 border-purple-200 pb-2 mb-4">Network Configuration</h2>
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="font-semibold text-purple-700 mb-3">Network Segments</h3>
+                        <div class="space-y-2">
+                            <div><strong>Production Network:</strong> <span class="llm-fill">{{PROD_NETWORK_RANGE}}</span></div>
+                            <div><strong>Management Network:</strong> <span class="llm-fill">{{MGMT_NETWORK_RANGE}}</span></div>
+                            <div><strong>DMZ Network:</strong> <span class="llm-fill">{{DMZ_NETWORK_RANGE}}</span></div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recovery Priority & Sequence -->
-        <div class="row mt-4 recovery-priority-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-sort-numeric-up me-2"></i>Recovery Priority & Startup Sequence</h2>
-                </div>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Important:</strong> Follow this sequence to ensure proper system dependencies are met during recovery.
-                        </div>
-                        
-                        <div class="timeline-item priority-high">
-                            <h5><span class="step-number">1</span>Infrastructure & Network</h5>
-                            <div class="llm-placeholder">
-                                First priority: Restore network infrastructure, firewalls, switches, and basic connectivity
-                            </div>
-                            <strong>Estimated Time:</strong> <span class="llm-placeholder">Time estimate</span>
-                        </div>
-
-                        <div class="timeline-item priority-high">
-                            <h5><span class="step-number">2</span>Critical Database/Storage</h5>
-                            <div class="llm-placeholder">
-                                Second priority: Restore database servers and shared storage systems
-                            </div>
-                            <strong>Estimated Time:</strong> <span class="llm-placeholder">Time estimate</span>
-                        </div>
-
-                        <div class="timeline-item priority-medium">
-                            <h5><span class="step-number">3</span>Primary Application Servers</h5>
-                            <div class="llm-placeholder">
-                                Third priority: Restore main application servers that depend on database/storage
-                            </div>
-                            <strong>Estimated Time:</strong> <span class="llm-placeholder">Time estimate</span>
-                        </div>
-
-                        <div class="timeline-item priority-medium">
-                            <h5><span class="step-number">4</span>Secondary Services</h5>
-                            <div class="llm-placeholder">
-                                Fourth priority: Restore supporting services like web servers, load balancers, monitoring
-                            </div>
-                            <strong>Estimated Time:</strong> <span class="llm-placeholder">Time estimate</span>
-                        </div>
-
-                        <div class="timeline-item priority-low">
-                            <h5><span class="step-number">5</span>Additional Services</h5>
-                            <div class="llm-placeholder">
-                                Final priority: Restore non-critical services and perform full system validation
-                            </div>
-                            <strong>Estimated Time:</strong> <span class="llm-placeholder">Time estimate</span>
-                        </div>
-
-                        <div class="mt-4">
-                            <strong>Total Estimated Recovery Time:</strong>
-                            <div class="llm-placeholder">Sum of all recovery steps</div>
+                    <div>
+                        <h3 class="font-semibold text-purple-700 mb-3">Key Network Devices</h3>
+                        <div class="space-y-2">
+                            <div><strong>Primary Router:</strong> <span class="llm-fill">{{PRIMARY_ROUTER_IP}}</span></div>
+                            <div><strong>Core Switch:</strong> <span class="llm-fill">{{CORE_SWITCH_IP}}</span></div>
+                            <div><strong>Firewall:</strong> <span class="llm-fill">{{FIREWALL_IP}}</span></div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Detailed Recovery Steps -->
-        <div class="row mt-4 page-break detailed-recovery-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-list-ol me-2"></i>Detailed Recovery Procedures</h2>
                 </div>
                 
-                <div class="accordion" id="recoveryAccordion">
-                    <!-- Step 1 -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#step1">
-                                <i class="fas fa-network-wired me-2"></i>Step 1: Network Infrastructure Recovery
-                            </button>
-                        </h2>
-                        <div id="step1" class="accordion-collapse collapse show">
-                            <div class="accordion-body">
-                                <div class="llm-placeholder">
-                                    Detailed step-by-step instructions for restoring network infrastructure:
-                                    1. Check physical connections
-                                    2. Power on network equipment in correct order
-                                    3. Verify firewall configuration
-                                    4. Test internet connectivity
-                                    5. Validate internal network communication
-                                </div>
-                                <div class="mt-3">
-                                    <strong>Verification Steps:</strong>
-                                    <div class="llm-placeholder">Commands or tests to verify network is functioning properly</div>
-                                </div>
-                            </div>
+                <div>
+                    <h3 class="font-semibold text-purple-700 mb-3">DNS Configuration</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><strong>Primary DNS:</strong> <span class="llm-fill">{{PRIMARY_DNS}}</span></div>
+                        <div><strong>Secondary DNS:</strong> <span class="llm-fill">{{SECONDARY_DNS}}</span></div>
+                        <div><strong>Domain:</strong> <span class="llm-fill">{{DOMAIN_NAME}}</span></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold text-purple-700 mb-3">Load Balancers / VIPs</h3>
+                    <div class="llm-fill">{{LOAD_BALANCER_CONFIG}}</div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold text-purple-700 mb-3">External Dependencies</h3>
+                    <div class="llm-fill">{{EXTERNAL_DEPENDENCIES}}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recovery Procedures -->
+        <div class="page-break"></div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold text-red-800 border-b-2 border-red-200 pb-2 mb-4">🚨 Recovery Procedures</h2>
+            
+            <!-- Step-by-Step Recovery -->
+            <div class="space-y-8">
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 print-break-inside-avoid">
+                    <h3 class="text-xl font-semibold text-red-800 mb-4">Step 1: Initial Assessment</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <h4 class="font-semibold text-red-700">Incident Assessment Checklist:</h4>
+                            <div class="llm-fill">{{INCIDENT_ASSESSMENT_STEPS}}</div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-red-700">Communication Protocol:</h4>
+                            <div class="llm-fill">{{COMMUNICATION_PROTOCOL}}</div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Step 2 -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step2">
-                                <i class="fas fa-database me-2"></i>Step 2: Database/Storage Recovery
-                            </button>
-                        </h2>
-                        <div id="step2" class="accordion-collapse collapse">
-                            <div class="accordion-body">
-                                <div class="llm-placeholder">
-                                    Detailed instructions for database and storage recovery:
-                                    1. Mount storage volumes
-                                    2. Check filesystem integrity
-                                    3. Start database services
-                                    4. Verify database connectivity
-                                    5. Test data integrity
-                                </div>
-                                <div class="mt-3">
-                                    <strong>Critical Files/Directories:</strong>
-                                    <div class="llm-placeholder">List of critical file paths and directories to verify</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="bg-orange-50 border-l-4 border-orange-500 p-4 print-break-inside-avoid">
+                    <h3 class="text-xl font-semibold text-orange-800 mb-4">Step 2: Network Recovery</h3>
+                    <div class="llm-fill">{{NETWORK_RECOVERY_STEPS}}</div>
+                </div>
 
-                    <!-- Step 3 -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step3">
-                                <i class="fas fa-server me-2"></i>Step 3: Application Server Recovery
-                            </button>
-                        </h2>
-                        <div id="step3" class="accordion-collapse collapse">
-                            <div class="accordion-body">
-                                <div class="llm-placeholder">
-                                    Detailed instructions for application server recovery:
-                                    1. Start servers in dependency order
-                                    2. Verify application configurations
-                                    3. Test application connectivity
-                                    4. Check service status
-                                    5. Validate application functionality
-                                </div>
-                                <div class="mt-3">
-                                    <strong>Service Commands:</strong>
-                                    <div class="llm-placeholder">Specific commands to start/stop/status check services</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 print-break-inside-avoid">
+                    <h3 class="text-xl font-semibold text-green-800 mb-4">Step 3: Primary Server Recovery</h3>
+                    <div class="llm-fill">{{PRIMARY_SERVER_RECOVERY_STEPS}}</div>
+                </div>
 
-                    <!-- Additional Steps -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#stepAdditional">
-                                <i class="fas fa-cogs me-2"></i>Additional Recovery Steps
-                            </button>
-                        </h2>
-                        <div id="stepAdditional" class="accordion-collapse collapse">
-                            <div class="accordion-body">
-                                <div class="llm-placeholder">
-                                    Additional recovery procedures specific to your environment
-                                </div>
-                            </div>
-                        </div>
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 print-break-inside-avoid">
+                    <h3 class="text-xl font-semibold text-yellow-800 mb-4">Step 4: Secondary Server Recovery</h3>
+                    <div class="llm-fill">{{SECONDARY_SERVER_RECOVERY_STEPS}}</div>
+                </div>
+
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 print-break-inside-avoid">
+                    <h3 class="text-xl font-semibold text-blue-800 mb-4">Step 5: Service Validation</h3>
+                    <div class="llm-fill">{{SERVICE_VALIDATION_STEPS}}</div>
+                </div>
+
+                <div class="bg-purple-50 border-l-4 border-purple-500 p-4 print-break-inside-avoid">
+                    <h3 class="text-xl font-semibold text-purple-800 mb-4">Step 6: Data Integrity Verification</h3>
+                    <div class="llm-fill">{{DATA_INTEGRITY_VERIFICATION}}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recovery Commands and Scripts -->
+        <div class="page-break"></div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold text-indigo-800 border-b-2 border-indigo-200 pb-2 mb-4">Recovery Commands & Scripts</h2>
+            
+            <div class="space-y-6">
+                <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm print-break-inside-avoid">
+                    <h3 class="text-white font-semibold mb-2">Common Recovery Commands:</h3>
+                    <div class="llm-fill bg-gray-800 text-yellow-300 p-2 rounded">{{RECOVERY_COMMANDS}}</div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold text-indigo-700 mb-3">Key File Locations:</h3>
+                    <div class="llm-fill">{{KEY_FILE_LOCATIONS}}</div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold text-indigo-700 mb-3">Backup Locations:</h3>
+                    <div class="llm-fill">{{BACKUP_LOCATIONS}}</div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold text-indigo-700 mb-3">Service Start/Stop Commands:</h3>
+                    <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
+                        <div class="llm-fill bg-gray-800 text-yellow-300 p-2 rounded">{{SERVICE_COMMANDS}}</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Verification & Testing -->
-        <div class="row mt-4 verification-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-check-circle me-2"></i>System Verification & Testing</h2>
+        <!-- Testing and Validation -->
+        <div class="page-break"></div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold text-green-800 border-b-2 border-green-200 pb-2 mb-4">✅ Testing and Validation</h2>
+            
+            <div class="space-y-6">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 print-break-inside-avoid">
+                    <h3 class="font-semibold text-green-800 mb-3">System Health Checks</h3>
+                    <div class="llm-fill">{{SYSTEM_HEALTH_CHECKS}}</div>
                 </div>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>Connectivity Tests</h5>
-                                <div class="llm-placeholder">
-                                    Network connectivity tests to perform:
-                                    - Ping tests to critical servers
-                                    - Port connectivity tests
-                                    - DNS resolution tests
-                                    - External connectivity validation
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h5>Application Tests</h5>
-                                <div class="llm-placeholder">
-                                    Application functionality tests:
-                                    - User login tests
-                                    - Database queries
-                                    - File access tests
-                                    - Performance benchmarks
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <h5>Monitoring & Alerts</h5>
-                            <div class="llm-placeholder">
-                                Steps to re-enable monitoring systems and verify alert functionality
-                            </div>
-                        </div>
-                    </div>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 print-break-inside-avoid">
+                    <h3 class="font-semibold text-blue-800 mb-3">Application Testing</h3>
+                    <div class="llm-fill">{{APPLICATION_TESTING_STEPS}}</div>
+                </div>
+                
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 print-break-inside-avoid">
+                    <h3 class="font-semibold text-purple-800 mb-3">Performance Validation</h3>
+                    <div class="llm-fill">{{PERFORMANCE_VALIDATION}}</div>
+                </div>
+                
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 print-break-inside-avoid">
+                    <h3 class="font-semibold text-yellow-800 mb-3">User Acceptance Testing</h3>
+                    <div class="llm-fill">{{USER_ACCEPTANCE_TESTING}}</div>
                 </div>
             </div>
         </div>
 
-        <!-- Rollback Procedures -->
-        <div class="row mt-4 rollback-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-undo me-2"></i>Rollback Procedures</h2>
+        <!-- Post-Recovery Actions -->
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-teal-800 border-b-2 border-teal-200 pb-2 mb-4">📋 Post-Recovery Actions</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-semibold text-teal-700 mb-2">Documentation Updates:</h3>
+                    <div class="llm-fill">{{DOCUMENTATION_UPDATES}}</div>
                 </div>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Warning:</strong> Use these procedures if recovery attempts fail or cause additional problems.
-                        </div>
-                        <div class="llm-placeholder">
-                            Step-by-step rollback procedures:
-                            1. Document current state
-                            2. Stop problematic services
-                            3. Restore from backup points
-                            4. Verify rollback success
-                            5. Plan alternative recovery approach
-                        </div>
-                    </div>
+                
+                <div>
+                    <h3 class="font-semibold text-teal-700 mb-2">Lessons Learned:</h3>
+                    <div class="llm-fill">{{LESSONS_LEARNED}}</div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Post-Recovery Tasks -->
-        <div class="row mt-4 post-recovery-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-tasks me-2"></i>Post-Recovery Tasks</h2>
+                
+                <div>
+                    <h3 class="font-semibold text-teal-700 mb-2">Process Improvements:</h3>
+                    <div class="llm-fill">{{PROCESS_IMPROVEMENTS}}</div>
                 </div>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>Immediate Tasks</h5>
-                                <div class="llm-placeholder">
-                                    Tasks to complete immediately after recovery:
-                                    - Notify stakeholders of recovery status
-                                    - Update monitoring systems
-                                    - Verify backup processes
-                                    - Document any issues encountered
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h5>Follow-up Tasks</h5>
-                                <div class="llm-placeholder">
-                                    Tasks to complete within 24-48 hours:
-                                    - Conduct post-mortem review
-                                    - Update disaster recovery procedures
-                                    - Test backup systems
-                                    - Schedule security scans
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                
+                <div>
+                    <h3 class="font-semibold text-teal-700 mb-2">Stakeholder Communication:</h3>
+                    <div class="llm-fill">{{STAKEHOLDER_COMMUNICATION}}</div>
                 </div>
             </div>
         </div>
 
-        <!-- Documentation & Notes -->
-        <div class="row mt-4 mb-4 documentation-section">
-            <div class="col-12">
-                <div class="section-header">
-                    <h2><i class="fas fa-sticky-note me-2"></i>Recovery Notes & Documentation</h2>
+        <!-- Additional Resources -->
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">📚 Additional Resources</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3">Documentation Links:</h3>
+                    <div class="llm-fill">{{DOCUMENTATION_LINKS}}</div>
                 </div>
-                <div class="card">
-                    <div class="card-body">
-                        <h5>Recovery Log</h5>
-                        <div class="llm-placeholder">
-                            Space for documenting the actual recovery process:
-                            - Start time
-                            - Steps completed
-                            - Issues encountered
-                            - Deviations from plan
-                            - End time
-                            - Lessons learned
-                        </div>
-                        
-                        <h5 class="mt-4">Additional Notes</h5>
-                        <div class="llm-placeholder">
-                            Space for additional notes, observations, and recommendations for future improvements
-                        </div>
-                    </div>
+                
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3">Vendor Support Contacts:</h3>
+                    <div class="llm-fill">{{VENDOR_SUPPORT_CONTACTS}}</div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="row">
-            <div class="col-12">
-                <div class="text-center text-muted py-3 border-top">
-                    <small>
-                        This disaster recovery runbook should be reviewed and updated regularly.<br>
-                        Last Updated: <span class="llm-placeholder">Date/Time</span> | 
-                        Version: <span class="llm-placeholder">Version Number</span>
-                    </small>
+                
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3">Monitoring Tools:</h3>
+                    <div class="llm-fill">{{MONITORING_TOOLS}}</div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3">Escalation Procedures:</h3>
+                    <div class="llm-fill">{{ESCALATION_PROCEDURES}}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 mt-12 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p>&copy; 2024 Disaster Recovery Runbook | Confidential Document</p>
+            <p class="text-sm mt-2">This document contains sensitive information. Handle according to company security policies.</p>
+        </div>
+    </footer>
 </body>
 </html>
