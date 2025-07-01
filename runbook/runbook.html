@@ -7,6 +7,9 @@ When filling this template, please:
 3. Remove this instruction comment when done
 4. Fill all {{PLACEHOLDER}} values with appropriate content
 5. For server sections, duplicate the server blocks as needed for multiple servers
+6. Use ionicons (ion-icon elements) instead of emojis for any new icons you add
+   Examples: <ion-icon name="alert-circle-outline"></ion-icon> instead of 🚨
+   Available at: https://ionic.io/ionicons
 -->
 <html lang="en">
 <head>
@@ -14,6 +17,8 @@ When filling this template, please:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{Client}} Disaster Recovery Runbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <style>
         @media print {
             .no-print { display: none !important; }
@@ -79,13 +84,14 @@ When filling this template, please:
         
         <!-- 🤖 LLM: REMOVE THIS ENTIRE SECTION WHEN FILLING THE TEMPLATE -->
         <div class="bg-orange-100 border-2 border-orange-400 rounded-lg p-6 mb-8">
-            <h2 class="text-2xl font-bold text-orange-800 mb-4">🤖 Instructions for LLM</h2>
+            <h2 class="text-2xl font-bold text-orange-800 mb-4"><ion-icon name="construct-outline" class="align-middle mr-2"></ion-icon>Instructions for LLM</h2>
             <div class="text-orange-700 space-y-3">
                 <p><strong>IMPORTANT:</strong> Replace the entire <code>&lt;div class="llm-fill"&gt;{{PLACEHOLDER}}&lt;/div&gt;</code> with just your content.</p>
                 <div class="bg-white p-3 rounded border">
                     <p><strong>❌ Wrong:</strong> <code>&lt;div class="llm-fill"&gt;My Production System&lt;/div&gt;</code></p>
                     <p><strong>✅ Correct:</strong> <code>My Production System</code></p>
                 </div>
+                <p><strong>Icons:</strong> Use ionicons instead of emojis. Example: <code>&lt;ion-icon name="alert-circle-outline"&gt;&lt;/ion-icon&gt;</code> instead of 🚨</p>
                 <p><strong>When done:</strong> Remove this entire instruction section and all yellow placeholder boxes.</p>
             </div>
         </div>
@@ -115,7 +121,7 @@ When filling this template, please:
 
         <!-- Emergency Contacts -->
         <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
-            <h2 class="text-2xl font-semibold text-red-700 border-b-2 border-red-200 pb-2 mb-4">🚨 Emergency Contacts</h2>
+            <h2 class="text-2xl font-semibold text-red-700 border-b-2 border-red-200 pb-2 mb-4"><ion-icon name="alert-circle-outline" class="align-middle mr-2"></ion-icon>Emergency Contacts</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div class="bg-red-50 p-4 rounded-lg border border-red-200">
                     <h3 class="font-semibold text-red-800">Primary On-Call Engineer</h3>
@@ -174,7 +180,7 @@ When filling this template, please:
             
             <!-- Primary Servers -->
             <div class="mb-8">
-                <h3 class="text-xl font-semibold text-green-700 mb-4">🟢 Primary Servers (Bring up FIRST)</h3>
+                <h3 class="text-xl font-semibold text-green-700 mb-4"><ion-icon name="checkmark-circle" class="align-middle mr-2 text-green-600"></ion-icon>Primary Servers (Bring up FIRST)</h3>
                 <div class="space-y-6">
                     <div class="bg-green-50 border border-green-200 rounded-lg p-4 print-break-inside-avoid">
                         <h4 class="font-semibold text-green-800 mb-3">Server 1 - Critical</h4>
@@ -205,7 +211,7 @@ When filling this template, please:
 
             <!-- Secondary Servers -->
             <div class="mb-8">
-                <h3 class="text-xl font-semibold text-yellow-700 mb-4">🟡 Secondary Servers (Bring up SECOND)</h3>
+                <h3 class="text-xl font-semibold text-yellow-700 mb-4"><ion-icon name="ellipse" class="align-middle mr-2 text-yellow-600"></ion-icon>Secondary Servers (Bring up SECOND)</h3>
                 <div class="space-y-6">
                     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 print-break-inside-avoid">
                         <h4 class="font-semibold text-yellow-800 mb-3">Server 2 - Important</h4>
@@ -236,7 +242,7 @@ When filling this template, please:
 
             <!-- Optional/Non-Critical Servers -->
             <div>
-                <h3 class="text-xl font-semibold text-gray-700 mb-4">⚪ Optional Servers (Bring up LAST)</h3>
+                <h3 class="text-xl font-semibold text-gray-700 mb-4"><ion-icon name="ellipse-outline" class="align-middle mr-2 text-gray-600"></ion-icon>Optional Servers (Bring up LAST)</h3>
                 <div class="space-y-6">
                     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 print-break-inside-avoid">
                         <h4 class="font-semibold text-gray-800 mb-3">Server 3 - Optional</h4>
@@ -314,7 +320,7 @@ When filling this template, please:
         <!-- Recovery Procedures -->
         <div class="page-break"></div>
         <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-semibold text-red-800 border-b-2 border-red-200 pb-2 mb-4">🚨 Recovery Procedures</h2>
+            <h2 class="text-2xl font-semibold text-red-800 border-b-2 border-red-200 pb-2 mb-4"><ion-icon name="alert-circle-outline" class="align-middle mr-2"></ion-icon>Recovery Procedures</h2>
             
             <!-- Step-by-Step Recovery -->
             <div class="space-y-8">
@@ -392,7 +398,7 @@ When filling this template, please:
         <!-- Testing and Validation -->
         <div class="page-break"></div>
         <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-semibold text-green-800 border-b-2 border-green-200 pb-2 mb-4">✅ Testing and Validation</h2>
+            <h2 class="text-2xl font-semibold text-green-800 border-b-2 border-green-200 pb-2 mb-4"><ion-icon name="checkmark-circle-outline" class="align-middle mr-2"></ion-icon>Testing and Validation</h2>
             
             <div class="space-y-6">
                 <div class="bg-green-50 border border-green-200 rounded-lg p-4 print-break-inside-avoid">
@@ -419,7 +425,7 @@ When filling this template, please:
 
         <!-- Post-Recovery Actions -->
         <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
-            <h2 class="text-2xl font-semibold text-teal-800 border-b-2 border-teal-200 pb-2 mb-4">📋 Post-Recovery Actions</h2>
+            <h2 class="text-2xl font-semibold text-teal-800 border-b-2 border-teal-200 pb-2 mb-4"><ion-icon name="clipboard-outline" class="align-middle mr-2"></ion-icon>Post-Recovery Actions</h2>
             
             <div class="space-y-4">
                 <div>
@@ -446,7 +452,7 @@ When filling this template, please:
 
         <!-- Additional Resources -->
         <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
-            <h2 class="text-2xl font-semibold text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">📚 Additional Resources</h2>
+            <h2 class="text-2xl font-semibold text-gray-800 border-b-2 border-gray-200 pb-2 mb-4"><ion-icon name="library-outline" class="align-middle mr-2"></ion-icon>Additional Resources</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>

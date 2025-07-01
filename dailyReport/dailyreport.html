@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<!-- 
+🤖 LLM INSTRUCTIONS:
+When filling this template, please:
+1. Replace ALL instances of <div class="llm-fill">{{PLACEHOLDER}}</div> with just your content (no div, no class)
+2. Replace {{Date}} in the title with the actual report date
+3. Remove this instruction comment when done
+4. Fill all {{PLACEHOLDER}} values with appropriate content
+5. For client/device/agent sections, duplicate the blocks as needed
+6. Update chart data in the JavaScript section with real backup metrics
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Backup Report - {{REPORT_DATE}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+            .page-break-after { page-break-after: always; }
+            .print-break-inside-avoid { break-inside: avoid; }
+            body { font-size: 12pt; line-height: 1.4; }
+            .print-text-sm { font-size: 10pt; }
+            .print-compact { margin: 0.25rem 0; }
+        }
+        
+        /* 
+        IMPORTANT FOR LLM: When filling this template, replace the ENTIRE 
+        <div class="llm-fill">{{PLACEHOLDER}}</div> element with just your content.
+        Do NOT keep the llm-fill class or the div wrapper - replace the whole thing.
+        Example: <div class="llm-fill">{{CLIENT_NAME}}</div> becomes: Acme Corporation
+        */
+        .llm-fill {
+            background-color: #fef3c7;
+            border: 2px dashed #f59e0b;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            font-style: italic;
+            color: #92400e;
+        }
+        
+        .llm-fill::before {
+            content: "🤖 FILL ME: ";
+            font-weight: bold;
+            color: #d97706;
+        }
+        
+        @media print {
+            .llm-fill {
+                background-color: #f3f4f6;
+                border: 1px solid #6b7280;
+                color: #374151;
+            }
+        }
+
+        .screenshot-preview {
+            max-width: 200px;
+            max-height: 150px;
+            object-fit: cover;
+            border-radius: 0.375rem;
+            border: 2px solid #e5e7eb;
+            transition: transform 0.2s;
+        }
+
+        .screenshot-preview:hover {
+            transform: scale(1.1);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.expanded {
+            max-height: 2000px;
+        }
+
+        .rotate-90 {
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+    <!-- Header Section -->
+    <div class="bg-white shadow-sm border-b-2 border-green-600 print-break-inside-avoid">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-green-900">Daily Backup Report</h1>
+                    <p class="text-lg text-gray-600 mt-2">Snapshot Status and Verification Summary</p>
+                    <p class="text-sm text-gray-500 mt-1">Server Agents → Backup Devices → Cloud Storage</p>
+                </div>
+                <div class="text-right print-text-sm">
+                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded">
+                        <p class="font-semibold">Report Date</p>
+                        <p class="text-sm"><span class="llm-fill">{{REPORT_DATE}}</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        <!-- 🤖 LLM: REMOVE THIS ENTIRE SECTION WHEN FILLING THE TEMPLATE -->
+        <div class="bg-orange-100 border-2 border-orange-400 rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-orange-800 mb-4">🤖 Instructions for LLM</h2>
+            <div class="text-orange-700 space-y-3">
+                <p><strong>IMPORTANT:</strong> Replace the entire <code>&lt;div class="llm-fill"&gt;{{PLACEHOLDER}}&lt;/div&gt;</code> with just your content.</p>
+                <div class="bg-white p-3 rounded border">
+                    <p><strong>❌ Wrong:</strong> <code>&lt;div class="llm-fill"&gt;Acme Corporation&lt;/div&gt;</code></p>
+                    <p><strong>✅ Correct:</strong> <code>Acme Corporation</code></p>
+                </div>
+                <p><strong>When done:</strong> Remove this entire instruction section and all yellow placeholder boxes.</p>
+                <p><strong>Charts:</strong> Update the Chart.js data in the JavaScript section with real backup metrics.</p>
+                <p><strong>Screenshots:</strong> Replace placeholder image URLs with actual screenshot verification images.</p>
+            </div>
+        </div>
+
+        <!-- Report Summary -->
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-green-800 border-b-2 border-green-200 pb-2 mb-4">
+                <ion-icon name="bar-chart" class="mr-2"></ion-icon>Report Summary
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="bg-green-50 p-4 rounded-lg border border-green-200 text-center">
+                    <div class="text-3xl font-bold text-green-600"><span class="llm-fill">{{TOTAL_SUCCESSFUL_SNAPSHOTS}}</span></div>
+                    <div class="text-sm text-green-700 font-medium">Successful Snapshots</div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg border border-red-200 text-center">
+                    <div class="text-3xl font-bold text-red-600"><span class="llm-fill">{{TOTAL_FAILED_SNAPSHOTS}}</span></div>
+                    <div class="text-sm text-red-700 font-medium">Failed Snapshots</div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                    <div class="text-3xl font-bold text-blue-600"><span class="llm-fill">{{TOTAL_CLIENTS}}</span></div>
+                    <div class="text-sm text-blue-700 font-medium">Active Clients</div>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg border border-purple-200 text-center">
+                    <div class="text-3xl font-bold text-purple-600"><span class="llm-fill">{{TOTAL_DEVICES}}</span></div>
+                    <div class="text-sm text-purple-700 font-medium">Total Devices</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                    <ion-icon name="pie-chart" class="mr-2"></ion-icon>Success Rate
+                </h3>
+                <div class="flex items-center justify-center">
+                    <canvas id="overallSuccessChart" width="200" height="200"></canvas>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                    <ion-icon name="pulse" class="mr-2"></ion-icon>System Health
+                </h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span>Agents Online:</span>
+                        <span class="font-semibold text-green-600"><span class="llm-fill">{{AGENTS_ONLINE}}</span>/<span class="llm-fill">{{TOTAL_AGENTS}}</span></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Devices Active:</span>
+                        <span class="font-semibold text-blue-600"><span class="llm-fill">{{DEVICES_ACTIVE}}</span>/<span class="llm-fill">{{TOTAL_DEVICES}}</span></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Cloud Sync:</span>
+                        <span class="font-semibold text-purple-600"><span class="llm-fill">{{CLOUD_SYNC_STATUS}}</span></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                    <ion-icon name="time" class="mr-2"></ion-icon>Today's Activity
+                </h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span>Snapshots Created:</span>
+                        <span class="font-semibold text-green-600"><span class="llm-fill">{{SNAPSHOTS_TODAY}}</span></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Data Transferred:</span>
+                        <span class="font-semibold text-blue-600"><span class="llm-fill">{{DATA_TRANSFERRED_TODAY}}</span></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Avg Snapshot Size:</span>
+                        <span class="font-semibold text-purple-600"><span class="llm-fill">{{AVG_SNAPSHOT_SIZE}}</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Reports -->
+        <div class="space-y-6">
+            <h2 class="text-2xl font-semibold text-blue-800 border-b-2 border-blue-200 pb-2">
+                <ion-icon name="people" class="mr-2"></ion-icon>Client Reports
+            </h2>
+
+            <!-- Client 1 Template -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden print-break-inside-avoid">
+                <div class="bg-blue-50 border-b border-blue-200 p-4">
+                    <div class="flex items-center justify-between cursor-pointer" onclick="toggleSection('client1')">
+                        <div class="flex items-center">
+                            <ion-icon name="chevron-forward" class="mr-2 transition-transform" id="client1-arrow"></ion-icon>
+                            <ion-icon name="business" class="mr-3 text-blue-600"></ion-icon>
+                            <h3 class="text-xl font-semibold text-blue-800"><span class="llm-fill">{{CLIENT1_NAME}}</span></h3>
+                        </div>
+                                                 <div class="flex space-x-4">
+                             <div class="bg-green-100 px-3 py-1 rounded text-green-700 font-medium">
+                                 <ion-icon name="checkmark-circle" class="mr-1"></ion-icon>
+                                 <span class="llm-fill">{{CLIENT1_SUCCESSFUL_SNAPSHOTS}}</span> Snapshots
+                             </div>
+                             <div class="bg-red-100 px-3 py-1 rounded text-red-700 font-medium">
+                                 <ion-icon name="close-circle" class="mr-1"></ion-icon>
+                                 <span class="llm-fill">{{CLIENT1_FAILED_SNAPSHOTS}}</span> Failed
+                             </div>
+                         </div>
+                    </div>
+                </div>
+                
+                <div id="client1-content" class="collapsible-content">
+                    <div class="p-6 space-y-6">
+                                                 <!-- Device 1 -->
+                         <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                             <div class="flex items-center justify-between mb-4">
+                                 <div class="flex items-center">
+                                     <ion-icon name="hardware-chip" class="mr-3 text-gray-600 text-xl"></ion-icon>
+                                     <div>
+                                         <h4 class="text-lg font-semibold text-gray-800"><span class="llm-fill">{{CLIENT1_DEVICE1_NAME}}</span></h4>
+                                         <p class="text-sm text-gray-600">Backup Target Device</p>
+                                     </div>
+                                 </div>
+                                 <div class="text-right text-sm text-gray-600">
+                                     <div>Storage: <span class="llm-fill">{{CLIENT1_DEVICE1_STORAGE_USED}}</span> / <span class="llm-fill">{{CLIENT1_DEVICE1_STORAGE_TOTAL}}</span></div>
+                                     <div>Location: <span class="llm-fill">{{CLIENT1_DEVICE1_LOCATION}}</span></div>
+                                 </div>
+                             </div>
+                             
+                             <!-- Storage Usage Chart -->
+                             <div class="mb-4 flex justify-center">
+                                 <canvas id="client1Device1StorageChart" width="250" height="125"></canvas>
+                             </div>
+                             
+                             <!-- Servers with Agents backing up to this device -->
+                             <div class="space-y-4">
+                                 <h5 class="font-semibold text-gray-700 border-b border-gray-300 pb-2">
+                                     <ion-icon name="server" class="mr-2"></ion-icon>Servers Backing Up to This Device
+                                 </h5>
+                                 
+                                 <!-- Server/Agent 1 -->
+                                 <div class="bg-white rounded p-4 border border-gray-300">
+                                     <div class="flex items-start justify-between">
+                                         <div class="flex-1">
+                                             <div class="flex items-center mb-2">
+                                                 <ion-icon name="desktop" class="mr-2 text-indigo-600 text-lg"></ion-icon>
+                                                 <div>
+                                                     <h6 class="font-semibold text-indigo-800"><span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_SERVER_NAME}}</span></h6>
+                                                     <p class="text-xs text-gray-600">Agent: <span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_NAME}}</span></p>
+                                                 </div>
+                                             </div>
+                                             <div class="grid grid-cols-2 gap-4 text-sm">
+                                                 <div>
+                                                     <span class="text-gray-600">Snapshots Today:</span>
+                                                     <span class="font-medium text-green-600 ml-2"><span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_SNAPSHOT_COUNT}}</span></span>
+                                                 </div>
+                                                 <div>
+                                                     <span class="text-gray-600">Last Snapshot:</span>
+                                                     <span class="font-medium ml-2"><span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_LAST_BACKUP_TIME}}</span></span>
+                                                 </div>
+                                                 <div>
+                                                     <span class="text-gray-600">Agent Status:</span>
+                                                     <span class="font-medium text-green-600 ml-2">
+                                                         <ion-icon name="checkmark-circle" class="mr-1"></ion-icon>
+                                                         <span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_STATUS}}</span>
+                                                     </span>
+                                                 </div>
+                                                 <div>
+                                                     <span class="text-gray-600">Total Size:</span>
+                                                     <span class="font-medium ml-2"><span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_TOTAL_SIZE}}</span></span>
+                                                 </div>
+                                                 <div>
+                                                     <span class="text-gray-600">Cloud Sync:</span>
+                                                     <span class="font-medium text-blue-600 ml-2">
+                                                         <ion-icon name="cloud-upload" class="mr-1"></ion-icon>
+                                                         <span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_CLOUD_STATUS}}</span>
+                                                     </span>
+                                                 </div>
+                                                 <div>
+                                                     <span class="text-gray-600">Server IP:</span>
+                                                     <span class="font-medium ml-2"><span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_SERVER_IP}}</span></span>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         <div class="ml-4">
+                                             <div class="text-center">
+                                                 <div class="text-xs text-gray-600 mb-2">Latest Screenshot</div>
+                                                 <img src="sampleScreenshot.png" 
+                                                      alt="Screenshot verification" 
+                                                      class="screenshot-preview"
+                                                      onclick="openScreenshot('sampleScreenshot.png')">
+                                                 <div class="text-xs text-gray-500 mt-1">
+                                                     <span class="llm-fill">{{CLIENT1_DEVICE1_AGENT1_SCREENSHOT_TIME}}</span>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Additional servers/agents template -->
+                                 <div class="llm-fill">{{CLIENT1_DEVICE1_ADDITIONAL_AGENTS}}</div>
+                             </div>
+                         </div>
+                        
+                        <!-- Additional devices template -->
+                        <div class="llm-fill">{{CLIENT1_ADDITIONAL_DEVICES}}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional clients template -->
+            <div class="llm-fill">{{ADDITIONAL_CLIENTS}}</div>
+        </div>
+
+        <!-- Failed Snapshots Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-red-800 border-b-2 border-red-200 pb-2 mb-4">
+                <ion-icon name="warning" class="mr-2"></ion-icon>Failed Snapshots Requiring Attention
+            </h2>
+            <div class="space-y-4">
+                <div class="llm-fill">{{FAILED_SNAPSHOT_DETAILS}}</div>
+            </div>
+        </div>
+
+        <!-- Storage Trends -->
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-purple-800 border-b-2 border-purple-200 pb-2 mb-4">
+                <ion-icon name="trending-up" class="mr-2"></ion-icon>Storage Trends
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Storage Usage by Client</h3>
+                    <canvas id="storageByClientChart" width="400" height="200"></canvas>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Daily Backup Volume</h3>
+                    <canvas id="dailyVolumeChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Notes -->
+        <div class="bg-white rounded-lg shadow-md p-6 print-break-inside-avoid">
+            <h2 class="text-2xl font-semibold text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">
+                <ion-icon name="document-text" class="mr-2"></ion-icon>Report Notes & Recommendations
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-2">Issues Identified:</h3>
+                    <div class="llm-fill">{{IDENTIFIED_ISSUES}}</div>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-2">Recommendations:</h3>
+                    <div class="llm-fill">{{RECOMMENDATIONS}}</div>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-2">Action Items:</h3>
+                    <div class="llm-fill">{{ACTION_ITEMS}}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screenshot Modal -->
+    <div id="screenshotModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden no-print">
+        <div class="max-w-4xl max-h-full p-4">
+            <img id="modalImage" src="" alt="Screenshot" class="max-w-full max-h-full rounded-lg">
+            <button onclick="closeScreenshot()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300">
+                <ion-icon name="close" class="text-3xl"></ion-icon>
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 mt-12 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p>&copy; 2024 Daily Backup Report | Generated: <span class="llm-fill">{{GENERATION_TIMESTAMP}}</span></p>
+            <p class="text-sm mt-2">Automated backup monitoring and verification system</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // Toggle collapsible sections
+        function toggleSection(sectionId) {
+            const content = document.getElementById(sectionId + '-content');
+            const arrow = document.getElementById(sectionId + '-arrow');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('expanded');
+                arrow.style.transform = 'rotate(90deg)';
+            }
+        }
+
+        // Screenshot modal functions
+        function openScreenshot(src) {
+            document.getElementById('modalImage').src = src;
+            document.getElementById('screenshotModal').classList.remove('hidden');
+        }
+
+        function closeScreenshot() {
+            document.getElementById('screenshotModal').classList.add('hidden');
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeScreenshot();
+            }
+        });
+
+        // Chart.js configurations
+        window.onload = function() {
+            // Overall Success Rate Chart (Compact)
+            const overallCtx = document.getElementById('overallSuccessChart').getContext('2d');
+            new Chart(overallCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Successful', 'Failed'],
+                    datasets: [{
+                        data: [
+                            // 🤖 LLM: Replace these values with actual snapshot statistics
+                            parseInt('{{TOTAL_SUCCESSFUL_SNAPSHOTS}}') || 85,
+                            parseInt('{{TOTAL_FAILED_SNAPSHOTS}}') || 5
+                        ],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Storage by Client Chart
+            const storageCtx = document.getElementById('storageByClientChart').getContext('2d');
+            new Chart(storageCtx, {
+                type: 'bar',
+                data: {
+                    labels: [
+                        // 🤖 LLM: Replace with actual client names
+                        '{{CLIENT1_NAME}}' || 'Client 1',
+                        '{{CLIENT2_NAME}}' || 'Client 2',
+                        '{{CLIENT3_NAME}}' || 'Client 3'
+                    ],
+                    datasets: [{
+                        label: 'Storage Used (GB)',
+                        data: [
+                            // 🤖 LLM: Replace with actual storage usage data
+                            parseInt('{{CLIENT1_TOTAL_STORAGE}}') || 150,
+                            parseInt('{{CLIENT2_TOTAL_STORAGE}}') || 230,
+                            parseInt('{{CLIENT3_TOTAL_STORAGE}}') || 180
+                        ],
+                        backgroundColor: '#8b5cf6',
+                        borderColor: '#7c3aed',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Storage (GB)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Daily Volume Chart
+            const volumeCtx = document.getElementById('dailyVolumeChart').getContext('2d');
+            new Chart(volumeCtx, {
+                type: 'line',
+                data: {
+                    labels: ['6 days ago', '5 days ago', '4 days ago', '3 days ago', '2 days ago', 'Yesterday', 'Today'],
+                    datasets: [{
+                        label: 'Backup Volume (GB)',
+                        data: [
+                            // 🤖 LLM: Replace with actual daily backup volume data
+                            45, 52, 48, 61, 55, 58, parseInt('{{TODAY_BACKUP_VOLUME}}') || 62
+                        ],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Volume (GB)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Storage usage charts for devices (example for client1device1)
+            const device1StorageCtx = document.getElementById('client1Device1StorageChart').getContext('2d');
+            new Chart(device1StorageCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Used', 'Free'],
+                    datasets: [{
+                        data: [
+                            // 🤖 LLM: Replace with actual storage data for this device
+                            parseInt('{{CLIENT1_DEVICE1_STORAGE_USED_GB}}') || 75,
+                            parseInt('{{CLIENT1_DEVICE1_STORAGE_FREE_GB}}') || 125
+                        ],
+                        backgroundColor: ['#f59e0b', '#e5e7eb'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        };
+    </script>
+</body>
+</html>
