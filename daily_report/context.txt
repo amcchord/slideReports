@@ -1,4 +1,4 @@
-RUNBOOK TEMPLATE
+DAILY REPORT TEMPLATE
 
 CRITICAL INSTRUCTIONS FOR REPORT GENERATION:
 - USE THIS TEMPLATE AS-IS - Do NOT modify the structure, format, or organization
@@ -9,6 +9,7 @@ CRITICAL INSTRUCTIONS FOR REPORT GENERATION:
 - STICK TO THE TEMPLATE - your job is to populate it with user-provided information, not redesign it
 - DO NOT USE EMOJI - Please use the ionicons library instead. 
 - Showing a screenshot per agent is critical
+- CONVERT ALL TIMEZONES to the users timezone. If unsure use America/New_York as the time zone. 
 
 <TEMPLATE></TEMPLATE>
 
