@@ -1,0 +1,23 @@
+RUNBOOK TEMPLATE
+
+CRITICAL INSTRUCTIONS FOR REPORT GENERATION:
+- USE THIS TEMPLATE AS-IS - Do NOT modify the structure, format, or organization
+- FILL IN the placeholder sections marked with *[brackets]* by asking the user for specific information
+- You MUST ask followup questions to gather ALL missing information needed to complete each section
+- DO NOT make assumptions or fill in placeholder content without user input
+- DO NOT change the template structure, headings, or formatting
+- Include actual data from the Slide system when available through other tools
+- STICK TO THE TEMPLATE - your job is to populate it with user-provided information, not redesign it
+- USE EMOJI SPARINGLY - Keep reports professional; avoid excessive or unnecessary emoji usage%s
+
+<TEMPLATE></TEMPLATE>
+
+MANDATORY APPROACH:
+1. Present the template structure to the user
+2. Go through each section systematically
+3. Ask specific questions for each placeholder marked with *[brackets]* using a numbered list to make it easy for the user
+4. Wait for user responses before moving to the next section
+5. Populate the template with the exact information provided by the user
+6. Do NOT improvise or modify the template structure
+
+DO NOT change, reorganize, or "improve" this template. Your role is to gather information from the user and populate the existing structure exactly as designed.
