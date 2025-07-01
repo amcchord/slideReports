@@ -7,7 +7,7 @@ CRITICAL INSTRUCTIONS FOR REPORT GENERATION:
 - DO NOT change the template structure, headings, or formatting
 - Include actual data from the Slide system when available through other tools
 - STICK TO THE TEMPLATE - your job is to populate it with user-provided information, not redesign it
-- USE EMOJI SPARINGLY - Keep reports professional; avoid excessive or unnecessary emoji usage
+- DO NOT USE EMOJI - Please use the ionicons library instead. 
 - Showing a screenshot per agent is critical
 
 <TEMPLATE></TEMPLATE>
