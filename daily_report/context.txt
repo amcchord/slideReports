@@ -12,7 +12,6 @@ CRITICAL INSTRUCTIONS FOR REPORT GENERATION:
 - CONVERT ALL TIMEZONES to the users timezone. If unsure use America/New_York as the time zone
 - VERY IMPORTANT BE SURE TO INCLUDE ALL THE RELEVANT AGENTS/SERVERS not just some of them
 
-
 <TEMPLATE></TEMPLATE>
 
 DO NOT change, reorganize, or "improve" this template. Your role is to gather information from the user and populate the existing structure exactly as designed.

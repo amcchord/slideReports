@@ -16,6 +16,8 @@ CRITICAL INSTRUCTIONS FOR REPORT GENERATION:
 - Include monthly trends and patterns in backup behavior
 - Highlight any days with issues or unusual activity
 
+YOU MUST INCLUDE DATA FOR EVERY DAY OF THE MONTH!
+
 MONTHLY REPORT FOCUS:
 - Calendar grid showing daily snapshot activity
 - Retention policy impact and deleted snapshots
