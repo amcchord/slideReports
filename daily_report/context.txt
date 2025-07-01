@@ -10,6 +10,7 @@ CRITICAL INSTRUCTIONS FOR REPORT GENERATION:
 - DO NOT USE EMOJI - Please use the ionicons library instead
 - Showing a screenshot per agent is critical
 - CONVERT ALL TIMEZONES to the users timezone. If unsure use America/New_York as the time zone
+- VERY IMPORTANT BE SURE TO INCLUDE ALL THE RELEVANT AGENTS/SERVERS not just some of them
 
 
 <TEMPLATE></TEMPLATE>
