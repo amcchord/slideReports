@@ -12,6 +12,8 @@
 ---
 
 ## Template Variables
+IMPORTANT: you should call list_all_clients_devices_and_agents to get context
+
 - `{{agent_hostname}}` - Hostname of the agent this snapshot belongs to
 - `{{backup_started_at}}` - ISO timestamp when backup started
 - `{{verification_status}}` - Combined boot and FS verification status with emojis

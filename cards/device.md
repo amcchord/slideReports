@@ -24,6 +24,9 @@
 ---
 
 ## Template Variables
+IMPORTANT: you should call list_all_clients_devices_and_agents to get context
+
+
 - `{{display_name}}` - Device display name (may be empty)
 - `{{hostname}}` - Device hostname
 - `{{service_status}}` - Device service status (active, inactive, etc.)

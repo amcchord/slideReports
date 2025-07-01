@@ -12,6 +12,8 @@
 ---
 
 ## Template Variables
+IMPORTANT: you should call list_all_clients_devices_and_agents to get context
+
 - `{{display_name}}` - Device display name (may be empty)
 - `{{hostname}}` - Device hostname (fallback identifier)
 - `{{client_name}}` - Name of client this device belongs to
