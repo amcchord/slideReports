@@ -372,8 +372,12 @@
                 <li><code>day_of_week</code> - Day abbreviation (Mon, Tue, etc.)</li>
                 <li><code>day_number</code> - Day of month (1-31)</li>
                 <li><code>backup_status</code> - Status: 'success', 'failed', 'running', or 'none'</li>
-                <li><code>retention_count</code> - Number of retention deletions on this day</li>
-                <li><code>has_snapshot</code> - Boolean indicating if snapshot exists</li>
+                <li><code>total_backups</code> - Total number of backups that occurred this day</li>
+                <li><code>successful_backups</code> - Number of successful backups</li>
+                <li><code>failed_backups</code> - Number of failed backups</li>
+                <li><code>snapshots_remaining</code> - Number of snapshots retained (not deleted by retention)</li>
+                <li><code>completion_color</code> - Color indicator: 'green', 'yellow', 'red', or 'none'</li>
+                <li><code>has_snapshot</code> - Boolean indicating if snapshot exists from this day</li>
             </ul>
             <p><strong>Example usage:</strong></p>
             <pre><code>{{ '{% for agent_cal in agent_calendars %}' }}
