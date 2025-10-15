@@ -22,23 +22,30 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('admin-login-form');
-    if (!form) return;
+    const passwordInput = document.getElementById('admin-password');
+    const errorDiv = document.getElementById('error-message');
+    const button = document.querySelector('#admin-login-form button[type="submit"]');
+    
+    if (!form || !passwordInput || !errorDiv || !button) {
+        console.error('Form elements not found:', {
+            form: !!form,
+            passwordInput: !!passwordInput,
+            errorDiv: !!errorDiv,
+            button: !!button
+        });
+        return;
+    }
     
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const password = document.getElementById('admin-password').value;
-        const errorDiv = document.getElementById('error-message');
-        const button = document.querySelector('button[type="submit"]');
-        
-        if (!errorDiv || !button) {
-            console.error('Form elements not found');
-            return;
-        }
+        const password = passwordInput.value;
         
         button.disabled = true;
         button.innerHTML = '<span class="spinner"></span> Authenticating...';

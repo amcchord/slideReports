@@ -50,12 +50,12 @@
     
     <div class="template-editor">
         <div class="editor-panel">
-            <h3>Template Description</h3>
+            <h3>AI Template Generation</h3>
             <p class="text-muted small">
                 Describe how you want your report to look. Be specific about sections, colors, and layout.
             </p>
             
-            <textarea class="form-control mb-3" id="template-prompt" rows="8" 
+            <textarea class="form-control mb-3" id="template-prompt" rows="6" 
                       placeholder="Example: Create a professional backup report with a blue header, metric cards showing backup success rates, and a table of recent backups...">{% if template %}{{ template.description }}{% else %}{{ default_description }}{% endif %}</textarea>
             
             <button class="btn btn-primary w-100" id="generate-button" onclick="generateTemplate()">
@@ -64,10 +64,15 @@
             
             <hr class="my-4">
             
-            <h5>Advanced</h5>
-            <p class="text-muted small">Edit the generated HTML directly if needed.</p>
-            <textarea class="form-control" id="template-html" rows="10" 
-                      placeholder="Generated HTML will appear here...">{% if template %}{{ template.html_content }}{% endif %}</textarea>
+            <h3>HTML Editor</h3>
+            <p class="text-muted small">
+                You can paste complete HTML templates here or edit the AI-generated HTML directly.
+                <a href="{{ url_for('report_values_docs') }}" target="_blank">
+                    <i class="bi bi-book"></i> View all available template variables
+                </a>
+            </p>
+            <textarea class="form-control" id="template-html" rows="12" 
+                      placeholder="Paste your HTML here or use AI generation above...">{% if template %}{{ template.html_content }}{% endif %}</textarea>
         </div>
         
         <div class="editor-panel">

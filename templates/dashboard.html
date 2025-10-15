@@ -56,53 +56,20 @@
         </div>
     </div>
     
-    <!-- Dashboard 2-Column Layout -->
-    <div class="dashboard-grid">
-        <!-- Left Column: Metrics Table -->
-        <div class="dashboard-metrics">
-            <h5 class="mb-3">Data Summary</h5>
-            <table class="metrics-table">
-                <tbody>
-                    <tr>
-                        <td><i class="bi bi-hdd"></i> Devices</td>
-                        <td>{{ counts.devices }}</td>
-                    </tr>
-                    <tr>
-                        <td><i class="bi bi-server"></i> Agents</td>
-                        <td>{{ counts.agents }}</td>
-                    </tr>
-                    <tr>
-                        <td><i class="bi bi-arrow-repeat"></i> Backups</td>
-                        <td>{{ counts.backups }}</td>
-                    </tr>
-                    <tr>
-                        <td><i class="bi bi-camera"></i> Snapshots</td>
-                        <td>{{ counts.snapshots }}</td>
-                    </tr>
-                    <tr>
-                        <td><i class="bi bi-exclamation-triangle"></i> Alerts</td>
-                        <td>{{ counts.alerts }}</td>
-                    </tr>
-                    <tr>
-                        <td><i class="bi bi-pc-display"></i> Virtual Machines</td>
-                        <td>{{ counts.virtual_machines }}</td>
-                    </tr>
-                    <tr>
-                        <td><i class="bi bi-people"></i> Clients</td>
-                        <td>{{ counts.clients }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- Right Column: Sync Status -->
-        <div class="dashboard-sync">
-            <h5 class="mb-3"><i class="bi bi-cloud-arrow-down"></i> Data Synchronization</h5>
-            <p class="text-muted small">
+    <!-- Unified Data Summary & Synchronization -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-table"></i> Data Summary & Synchronization
+            </div>
+            <div class="text-muted small">
                 <strong>Timezone:</strong> {{ timezone }} 
                 <a href="#" onclick="changeTimezone(); return false;" class="ms-2">Change</a>
-                <br>
-                <small>Syncing last 90 days of data</small>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                <i class="bi bi-info-circle"></i> Syncing last 90 days of data
             </p>
             
             <div id="sync-progress" style="display: none;">
@@ -110,56 +77,356 @@
                 <div id="sync-progress-items"></div>
             </div>
             
-            <table class="metrics-table">
-                <tbody>
-                    {% for key, status in sync_status.items() %}
+            <table class="table table-hover">
+                <thead>
                     <tr>
+                        <th style="width: 30%;">Data Type</th>
+                        <th style="width: 15%; text-align: right;">Count</th>
+                        <th style="width: 45%;">Last Sync</th>
+                        <th style="width: 10%; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><i class="bi bi-hdd"></i> Devices</td>
+                        <td style="text-align: right; font-weight: 600;">{{ counts.devices }}</td>
                         <td>
-                            <i class="bi bi-database"></i> {{ status.name }}
-                            {% if status.error_message %}
-                            <div class="text-danger small">{{ status.error_message }}</div>
+                            {% if sync_status.devices %}
+                            <span class="text-muted small">{{ sync_status.devices.last_sync_friendly }}</span>
+                            {% if sync_status.devices.error_message %}
+                            <div class="text-danger small">{{ sync_status.devices.error_message }}</div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted small">-</span>
                             {% endif %}
                         </td>
-                        <td style="text-align: right; width: 30%;">
-                            <div style="font-size: 1rem; font-weight: 600;">{{ status.total_items }}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted);">
-                                {% if status.last_sync %}{{ status.last_sync_friendly }}{% else %}-{% endif %}
-                            </div>
-                        </td>
-                        <td style="text-align: center; width: 10%;">
-                            {% if status.status == 'completed' %}
+                        <td style="text-align: center;">
+                            {% if sync_status.devices and sync_status.devices.status == 'completed' %}
                             <span class="status-badge status-success">✓</span>
-                            {% elif status.status == 'error' %}
+                            {% elif sync_status.devices and sync_status.devices.status == 'error' %}
                             <span class="status-badge status-danger">✗</span>
                             {% else %}
                             <span class="status-badge">-</span>
                             {% endif %}
                         </td>
                     </tr>
-                    {% endfor %}
+                    <tr>
+                        <td><i class="bi bi-server"></i> Agents</td>
+                        <td style="text-align: right; font-weight: 600;">{{ counts.agents }}</td>
+                        <td>
+                            {% if sync_status.agents %}
+                            <span class="text-muted small">{{ sync_status.agents.last_sync_friendly }}</span>
+                            {% if sync_status.agents.error_message %}
+                            <div class="text-danger small">{{ sync_status.agents.error_message }}</div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if sync_status.agents and sync_status.agents.status == 'completed' %}
+                            <span class="status-badge status-success">✓</span>
+                            {% elif sync_status.agents and sync_status.agents.status == 'error' %}
+                            <span class="status-badge status-danger">✗</span>
+                            {% else %}
+                            <span class="status-badge">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-arrow-repeat"></i> Backups</td>
+                        <td style="text-align: right; font-weight: 600;">{{ counts.backups }}</td>
+                        <td>
+                            {% if sync_status.backups %}
+                            <span class="text-muted small">{{ sync_status.backups.last_sync_friendly }}</span>
+                            {% if sync_status.backups.error_message %}
+                            <div class="text-danger small">{{ sync_status.backups.error_message }}</div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if sync_status.backups and sync_status.backups.status == 'completed' %}
+                            <span class="status-badge status-success">✓</span>
+                            {% elif sync_status.backups and sync_status.backups.status == 'error' %}
+                            <span class="status-badge status-danger">✗</span>
+                            {% else %}
+                            <span class="status-badge">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-camera"></i> Snapshots</td>
+                        <td style="text-align: right; font-weight: 600;">{{ counts.snapshots }}</td>
+                        <td>
+                            {% if sync_status.snapshots %}
+                            <span class="text-muted small">{{ sync_status.snapshots.last_sync_friendly }}</span>
+                            {% if sync_status.snapshots.error_message %}
+                            <div class="text-danger small">{{ sync_status.snapshots.error_message }}</div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if sync_status.snapshots and sync_status.snapshots.status == 'completed' %}
+                            <span class="status-badge status-success">✓</span>
+                            {% elif sync_status.snapshots and sync_status.snapshots.status == 'error' %}
+                            <span class="status-badge status-danger">✗</span>
+                            {% else %}
+                            <span class="status-badge">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-exclamation-triangle"></i> Alerts</td>
+                        <td style="text-align: right; font-weight: 600;">{{ counts.alerts }}</td>
+                        <td>
+                            {% if sync_status.alerts %}
+                            <span class="text-muted small">{{ sync_status.alerts.last_sync_friendly }}</span>
+                            {% if sync_status.alerts.error_message %}
+                            <div class="text-danger small">{{ sync_status.alerts.error_message }}</div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if sync_status.alerts and sync_status.alerts.status == 'completed' %}
+                            <span class="status-badge status-success">✓</span>
+                            {% elif sync_status.alerts and sync_status.alerts.status == 'error' %}
+                            <span class="status-badge status-danger">✗</span>
+                            {% else %}
+                            <span class="status-badge">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-pc-display"></i> Virtual Machines</td>
+                        <td style="text-align: right; font-weight: 600;">{{ counts.virtual_machines }}</td>
+                        <td>
+                            {% if sync_status.virtual_machines %}
+                            <span class="text-muted small">{{ sync_status.virtual_machines.last_sync_friendly }}</span>
+                            {% if sync_status.virtual_machines.error_message %}
+                            <div class="text-danger small">{{ sync_status.virtual_machines.error_message }}</div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if sync_status.virtual_machines and sync_status.virtual_machines.status == 'completed' %}
+                            <span class="status-badge status-success">✓</span>
+                            {% elif sync_status.virtual_machines and sync_status.virtual_machines.status == 'error' %}
+                            <span class="status-badge status-danger">✗</span>
+                            {% else %}
+                            <span class="status-badge">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-people"></i> Clients</td>
+                        <td style="text-align: right; font-weight: 600;">{{ counts.clients }}</td>
+                        <td>
+                            {% if sync_status.clients %}
+                            <span class="text-muted small">{{ sync_status.clients.last_sync_friendly }}</span>
+                            {% if sync_status.clients.error_message %}
+                            <div class="text-danger small">{{ sync_status.clients.error_message }}</div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if sync_status.clients and sync_status.clients.status == 'completed' %}
+                            <span class="status-badge status-success">✓</span>
+                            {% elif sync_status.clients and sync_status.clients.status == 'error' %}
+                            <span class="status-badge status-danger">✗</span>
+                            {% else %}
+                            <span class="status-badge">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
+<!-- Timezone Change Modal -->
+<div class="modal fade" id="timezoneModal" tabindex="-1" aria-labelledby="timezoneModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="timezoneModalLabel">
+                    <i class="bi bi-clock"></i> Change Timezone
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="timezone-form">
+                    <div class="mb-3">
+                        <label for="timezone-input" class="form-label">Select Timezone</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="timezone-input" 
+                               list="timezones-list"
+                               placeholder="Start typing to search..."
+                               value="{{ timezone }}"
+                               autocomplete="off"
+                               required>
+                        <datalist id="timezones-list"></datalist>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> Type to search for your timezone. Invalid timezones will default to America/New_York.
+                        </div>
+                    </div>
+                    <div id="timezone-error" class="alert alert-warning" style="display: none;">
+                        <i class="bi bi-exclamation-triangle"></i> <span id="timezone-error-msg"></span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-timezone-btn" onclick="saveTimezone()">
+                    <i class="bi bi-check-circle"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
+// Common timezones list for autocomplete
+const commonTimezones = [
+    'America/New_York',
+    'America/Chicago',
+    'America/Denver',
+    'America/Los_Angeles',
+    'America/Phoenix',
+    'America/Anchorage',
+    'Pacific/Honolulu',
+    'America/Toronto',
+    'America/Vancouver',
+    'America/Mexico_City',
+    'America/Sao_Paulo',
+    'Europe/London',
+    'Europe/Paris',
+    'Europe/Berlin',
+    'Europe/Rome',
+    'Europe/Madrid',
+    'Europe/Amsterdam',
+    'Europe/Brussels',
+    'Europe/Vienna',
+    'Europe/Stockholm',
+    'Europe/Warsaw',
+    'Europe/Athens',
+    'Europe/Istanbul',
+    'Europe/Moscow',
+    'Asia/Dubai',
+    'Asia/Karachi',
+    'Asia/Kolkata',
+    'Asia/Bangkok',
+    'Asia/Singapore',
+    'Asia/Hong_Kong',
+    'Asia/Shanghai',
+    'Asia/Tokyo',
+    'Asia/Seoul',
+    'Australia/Sydney',
+    'Australia/Melbourne',
+    'Australia/Brisbane',
+    'Australia/Perth',
+    'Pacific/Auckland',
+    'Africa/Cairo',
+    'Africa/Johannesburg',
+    'Africa/Lagos',
+    'Africa/Nairobi'
+];
+
+// Populate datalist with timezones
+document.addEventListener('DOMContentLoaded', function() {
+    const datalist = document.getElementById('timezones-list');
+    commonTimezones.forEach(tz => {
+        const option = document.createElement('option');
+        option.value = tz;
+        datalist.appendChild(option);
+    });
+});
+
 function startSync() {
     window.slideReports.syncManager.startSync(null);
 }
 
 function changeTimezone() {
-    const newTz = prompt('Enter timezone (e.g., America/New_York, Europe/London):', '{{ timezone }}');
-    if (newTz) {
-        fetch('/api/preferences/timezone', {
+    const modal = new bootstrap.Modal(document.getElementById('timezoneModal'));
+    document.getElementById('timezone-error').style.display = 'none';
+    modal.show();
+}
+
+async function saveTimezone() {
+    const newTz = document.getElementById('timezone-input').value.trim();
+    const saveBtn = document.getElementById('save-timezone-btn');
+    const errorDiv = document.getElementById('timezone-error');
+    const errorMsg = document.getElementById('timezone-error-msg');
+    
+    if (!newTz) {
+        errorMsg.textContent = 'Please enter a timezone.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Disable button and show loading
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+    errorDiv.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/preferences/timezone', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ timezone: newTz })
-        }).then(() => {
-            window.location.reload();
         });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Check if timezone was changed to default due to validation
+            if (data.timezone !== newTz) {
+                errorMsg.textContent = `Invalid timezone "${newTz}". Defaulting to ${data.timezone}.`;
+                errorDiv.style.display = 'block';
+                
+                // Wait a moment so user can see the message
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                window.location.reload();
+            }
+        } else {
+            errorMsg.textContent = data.error || 'Failed to save timezone.';
+            errorDiv.style.display = 'block';
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Save Changes';
+        }
+    } catch (error) {
+        errorMsg.textContent = 'Connection error. Please try again.';
+        errorDiv.style.display = 'block';
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Save Changes';
     }
 }
+
+// Allow Enter key to submit
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('timezone-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveTimezone();
+        }
+    });
+});
 </script>
 {% endblock %}
 

@@ -84,9 +84,14 @@
     <div class="card" id="preview-card" style="display: none;">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="bi bi-file-earmark-text"></i> Report Preview</span>
-            <button class="btn btn-sm btn-primary" onclick="printReport()">
-                <i class="bi bi-printer"></i> Print / Save as PDF
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-success" onclick="downloadReportHTML()">
+                    <i class="bi bi-download"></i> Download HTML
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="printReport()">
+                    <i class="bi bi-printer"></i> Print / Save as PDF
+                </button>
+            </div>
         </div>
         <div class="card-body p-0">
             <iframe id="report-preview" style="width: 100%; min-height: 800px; border: none;"></iframe>
@@ -303,6 +308,93 @@ async function previewReport() {
 
 function printReport() {
     window.slideReports.reportManager.printReport();
+}
+
+async function downloadReportHTML() {
+    const templateId = document.getElementById('template-select').value;
+    const clientId = document.getElementById('client-select').value;
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const dataSources = getSelectedDataSources();
+    
+    if (!templateId || !startDate || !endDate) {
+        alert('Please ensure all required fields are filled');
+        return;
+    }
+    
+    if (dataSources.length === 0) {
+        alert('Please select at least one data source');
+        return;
+    }
+    
+    // Find the download button and show loading state
+    const buttons = document.querySelectorAll('button');
+    let downloadButton = null;
+    for (const btn of buttons) {
+        if (btn.textContent.includes('Download HTML')) {
+            downloadButton = btn;
+            break;
+        }
+    }
+    
+    if (downloadButton) {
+        downloadButton.disabled = true;
+        downloadButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    }
+    
+    try {
+        const response = await fetch('/api/reports/download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                template_id: parseInt(templateId),
+                start_date: startDate,
+                end_date: endDate,
+                data_sources: dataSources,
+                client_id: clientId || null
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Download failed');
+        }
+        
+        // Get filename from Content-Disposition header
+        const disposition = response.headers.get('Content-Disposition');
+        let filename = 'backup-report.html';
+        if (disposition && disposition.includes('filename=')) {
+            const matches = disposition.match(/filename="(.+)"/);
+            if (matches && matches[1]) {
+                filename = matches[1];
+            }
+        }
+        
+        // Get the HTML content
+        const blob = await response.blob();
+        
+        // Create download link and trigger
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        window.slideReports.utils.showToast('Report downloaded successfully', 'success');
+    } catch (error) {
+        console.error('Download error:', error);
+        alert('Failed to download report: ' + error.message);
+    } finally {
+        // Restore button state
+        if (downloadButton) {
+            downloadButton.disabled = false;
+            downloadButton.innerHTML = '<i class="bi bi-download"></i> Download HTML';
+        }
+    }
 }
 </script>
 {% endblock %}

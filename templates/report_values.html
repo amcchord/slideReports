@@ -7,6 +7,38 @@
     <h1>Report Template Variables Reference</h1>
     <p class="lead">Complete list of all variables available in report templates</p>
     
+    <!-- Hero Section with Quick Actions -->
+    <div class="card mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-body p-4">
+            <h3 class="mb-3"><i class="bi bi-lightbulb"></i> Using Template Variables</h3>
+            <p class="mb-3">
+                This system uses <strong>Jinja2</strong> templating. You can create custom report templates using the variables below.
+            </p>
+            <div class="mb-3">
+                <strong>Quick Syntax Guide:</strong>
+                <ul class="mb-0 mt-2">
+                    <li><code style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">{{ '{{ variable }}' }}</code> - Display a variable</li>
+                    <li><code style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">{{ '{% if condition %}...{% endif %}' }}</code> - Conditional blocks</li>
+                    <li><code style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">{{ '{% for item in list %}...{% endfor %}' }}</code> - Loop through lists</li>
+                </ul>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-light btn-lg" onclick="downloadJSONSchema()">
+                    <i class="bi bi-download"></i> Download JSON Schema
+                </button>
+                <a href="{{ url_for('templates_new') }}" class="btn btn-outline-light btn-lg">
+                    <i class="bi bi-magic"></i> Create Template with AI
+                </a>
+                <a href="{{ url_for('templates_new') }}" class="btn btn-outline-light btn-lg">
+                    <i class="bi bi-code-square"></i> Import Your Own HTML
+                </a>
+            </div>
+            <p class="mt-3 mb-0 small" style="opacity: 0.9;">
+                <i class="bi bi-info-circle"></i> Download the JSON schema to use with ChatGPT, Claude, or other LLMs to generate custom templates
+            </p>
+        </div>
+    </div>
+    
     <!-- Global Variables -->
     <div class="card mb-4">
         <div class="card-header">
@@ -481,5 +513,35 @@
         </div>
     </div>
 </div>
+
+<script>
+async function downloadJSONSchema() {
+    try {
+        const response = await fetch('/api/template-schema.json');
+        if (!response.ok) {
+            throw new Error('Failed to fetch schema');
+        }
+        
+        const schema = await response.json();
+        const schemaStr = JSON.stringify(schema, null, 2);
+        const blob = new Blob([schemaStr], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'slide-report-template-schema.json';
+        document.body.appendChild(a);
+        a.click();
+        
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        window.slideReports.utils.showToast('Schema downloaded successfully', 'success');
+    } catch (error) {
+        console.error('Download error:', error);
+        alert('Failed to download schema: ' + error.message);
+    }
+}
+</script>
 {% endblock %}
 

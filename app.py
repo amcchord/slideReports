@@ -80,6 +80,32 @@ def require_api_key(f):
     return decorated_function
 
 
+def get_validated_timezone(db: Database) -> str:
+    """
+    Get validated timezone from database preferences.
+    Falls back to America/New_York if timezone is invalid.
+    
+    Args:
+        db: Database instance
+    
+    Returns:
+        Valid timezone string
+    """
+    import pytz
+    
+    timezone = db.get_preference('timezone', 'America/New_York')
+    
+    # Validate timezone
+    try:
+        pytz.timezone(timezone)
+        return timezone
+    except pytz.exceptions.UnknownTimeZoneError:
+        logger.warning(f'Invalid timezone "{timezone}" in database, falling back to America/New_York')
+        # Update database with valid timezone
+        db.set_preference('timezone', 'America/New_York')
+        return 'America/New_York'
+
+
 # Routes
 @app.route('/')
 def index():
@@ -150,8 +176,8 @@ def dashboard(api_key, api_key_hash):
     # Get data counts
     counts = db.get_data_source_counts()
     
-    # Get timezone
-    timezone = db.get_preference('timezone', 'America/New_York')
+    # Get validated timezone
+    timezone = get_validated_timezone(db)
     user_tz = pytz.timezone(timezone)
     
     # Add friendly date formatting to sync status
@@ -390,7 +416,7 @@ def reports_builder(api_key, api_key_hash):
     
     db = Database(get_database_path(api_key_hash))
     counts = db.get_data_source_counts()
-    timezone = db.get_preference('timezone', 'America/New_York')
+    timezone = get_validated_timezone(db)
     
     data_sources = []
     for key, name in SyncEngine.DATA_SOURCES.items():
@@ -452,6 +478,60 @@ def api_reports_preview(api_key, api_key_hash):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/reports/download', methods=['POST'])
+@require_api_key
+def api_reports_download(api_key, api_key_hash):
+    """Generate and download report as standalone HTML with embedded images"""
+    data = request.get_json()
+    template_id = data.get('template_id')
+    start_date_str = data.get('start_date')
+    end_date_str = data.get('end_date')
+    data_sources = data.get('data_sources', [])
+    client_id = data.get('client_id')  # Optional client filter
+    
+    # Parse dates
+    start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+    end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+    
+    # Get template
+    tm = TemplateManager(api_key_hash)
+    template = tm.get_template(template_id)
+    
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    # Generate report with base64 images
+    db = Database(get_database_path(api_key_hash))
+    generator = ReportGenerator(db)
+    
+    try:
+        html = generator.generate_report_with_base64_images(
+            template['html_content'],
+            start_date,
+            end_date,
+            data_sources,
+            logo_url='/static/img/logo.png',
+            client_id=client_id,
+            ai_generator=ai_generator
+        )
+        
+        # Create filename with date
+        if start_date and end_date:
+            filename = f"backup-report-{start_date.strftime('%Y-%m-%d')}-to-{end_date.strftime('%Y-%m-%d')}.html"
+        else:
+            filename = f"backup-report-{datetime.now().strftime('%Y-%m-%d')}.html"
+        
+        # Return as downloadable file
+        response = make_response(html)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+    except Exception as e:
+        logger.error(f"Report download generation failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/preferences/timezone', methods=['POST'])
 @require_api_key
 def api_set_timezone(api_key, api_key_hash):
@@ -462,10 +542,18 @@ def api_set_timezone(api_key, api_key_hash):
     if not timezone:
         return jsonify({'error': 'Timezone required'}), 400
     
+    # Validate timezone using pytz
+    try:
+        pytz.timezone(timezone)
+    except pytz.exceptions.UnknownTimeZoneError:
+        # Fall back to Eastern Standard Time if timezone is invalid
+        timezone = 'America/New_York'
+        logger.warning(f'Invalid timezone provided, falling back to {timezone}')
+    
     db = Database(get_database_path(api_key_hash))
     db.set_preference('timezone', timezone)
     
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'timezone': timezone})
 
 
 @app.route('/report-values')
@@ -473,6 +561,236 @@ def api_set_timezone(api_key, api_key_hash):
 def report_values_docs(api_key, api_key_hash):
     """Documentation page for all available report template variables"""
     return render_template('report_values.html')
+
+
+@app.route('/api/template-schema.json')
+@require_api_key
+def api_template_schema(api_key, api_key_hash):
+    """Get JSON schema of all template variables for LLM consumption"""
+    schema = {
+        "system": "Jinja2",
+        "description": "Template variables for Slide backup reports. Use Jinja2 syntax: {{ variable }} for output, {% if condition %} for conditionals, {% for item in list %} for loops.",
+        "documentation_url": "https://jinja.palletsprojects.com/",
+        "variables": {
+            "logo_url": {
+                "type": "string",
+                "description": "URL or path to logo image",
+                "example": "/static/img/logo.png"
+            },
+            "report_title": {
+                "type": "string",
+                "description": "Title of the report",
+                "example": "Slide Backup Report"
+            },
+            "date_range": {
+                "type": "string",
+                "description": "Human-readable date range for the report period",
+                "example": "2025-01-01 - 2025-01-31"
+            },
+            "generated_at": {
+                "type": "string",
+                "description": "Timestamp when report was generated (in user timezone)",
+                "example": "2025-10-15 14:30:00 EST"
+            },
+            "timezone": {
+                "type": "string",
+                "description": "User's timezone",
+                "example": "America/New_York"
+            },
+            "client_id": {
+                "type": "string|null",
+                "description": "Client ID if filtering by client, null for all clients",
+                "example": "client_123"
+            },
+            "client_name": {
+                "type": "string",
+                "description": "Client name (only present when filtering by client)",
+                "example": "BiffCo"
+            },
+            "exec_summary": {
+                "type": "string",
+                "description": "AI-generated executive summary (auto-generated if placeholder is present)",
+                "example": "During this reporting period, 148 backups were executed..."
+            },
+            "total_backups": {
+                "type": "integer",
+                "description": "Total number of backups in reporting period",
+                "example": 148
+            },
+            "successful_backups": {
+                "type": "integer",
+                "description": "Number of successful backups",
+                "example": 141
+            },
+            "failed_backups": {
+                "type": "integer",
+                "description": "Number of failed backups",
+                "example": 7
+            },
+            "success_rate": {
+                "type": "float",
+                "description": "Success percentage (0-100)",
+                "example": 95.3
+            },
+            "agent_backup_status": {
+                "type": "array",
+                "description": "List of per-agent backup status",
+                "item_type": "object",
+                "properties": {
+                    "name": "Agent display name",
+                    "last_backup": "Formatted datetime",
+                    "status": "Status string (Succeeded/Failed/Running)",
+                    "status_class": "CSS class (success/danger/warning)",
+                    "duration": "Formatted duration string"
+                }
+            },
+            "active_snapshots": {
+                "type": "integer",
+                "description": "Number of active (not deleted) snapshots",
+                "example": 126
+            },
+            "deleted_snapshots": {
+                "type": "integer",
+                "description": "Number of deleted snapshots",
+                "example": 34
+            },
+            "local_snapshots": {
+                "type": "integer",
+                "description": "Number of snapshots in local storage",
+                "example": 50
+            },
+            "cloud_snapshots": {
+                "type": "integer",
+                "description": "Number of snapshots in cloud storage",
+                "example": 76
+            },
+            "latest_screenshot": {
+                "type": "object|null",
+                "description": "Latest verification screenshot",
+                "properties": {
+                    "url": "Image URL",
+                    "agent_name": "Agent name",
+                    "captured_at": "Formatted datetime"
+                }
+            },
+            "total_alerts": {
+                "type": "integer",
+                "description": "Total alerts in reporting period",
+                "example": 12
+            },
+            "unresolved_alerts": {
+                "type": "integer",
+                "description": "Number of unresolved alerts",
+                "example": 3
+            },
+            "resolved_alerts": {
+                "type": "integer",
+                "description": "Number of resolved alerts",
+                "example": 9
+            },
+            "device_storage": {
+                "type": "array",
+                "description": "List of devices with storage info",
+                "item_type": "object",
+                "properties": {
+                    "name": "Device name",
+                    "used": "Used storage (formatted)",
+                    "total": "Total storage (formatted)",
+                    "percent": "Usage percentage (0-100)"
+                }
+            },
+            "total_vms": {
+                "type": "integer",
+                "description": "Total number of virtual machines",
+                "example": 5
+            },
+            "running_vms": {
+                "type": "integer",
+                "description": "Number of running VMs",
+                "example": 4
+            },
+            "stopped_vms": {
+                "type": "integer",
+                "description": "Number of stopped VMs",
+                "example": 1
+            },
+            "agent_calendars": {
+                "type": "array",
+                "description": "Calendar grid data per agent showing daily backup/snapshot status",
+                "item_type": "object",
+                "properties": {
+                    "agent_name": "Agent name",
+                    "agent_id": "Agent ID",
+                    "calendar_grid": "Array of day objects (see below)"
+                }
+            },
+            "agent_screenshots": {
+                "type": "array",
+                "description": "Screenshot pairs (oldest and newest) per agent",
+                "item_type": "object",
+                "properties": {
+                    "agent_name": "Agent name",
+                    "agent_id": "Agent ID",
+                    "oldest_screenshot": "Screenshot object (url, date, snapshot_id)",
+                    "newest_screenshot": "Screenshot object (url, date, snapshot_id)"
+                }
+            },
+            "storage_growth": {
+                "type": "object",
+                "description": "Overall storage growth metrics",
+                "properties": {
+                    "start_bytes": "Storage at period start (bytes)",
+                    "end_bytes": "Storage at period end (bytes)",
+                    "growth_bytes": "Net change (bytes)",
+                    "growth_percent": "Percentage change",
+                    "start_formatted": "Formatted start storage",
+                    "end_formatted": "Formatted end storage",
+                    "growth_formatted": "Formatted growth",
+                    "is_growth": "Boolean (true if growing, false if shrinking)"
+                }
+            },
+            "device_storage_growth": {
+                "type": "array",
+                "description": "Per-device storage growth breakdown",
+                "item_type": "object",
+                "properties": {
+                    "device_name": "Device name",
+                    "start_bytes": "Start storage (bytes)",
+                    "end_bytes": "End storage (bytes)",
+                    "growth_bytes": "Net change",
+                    "growth_percent": "Percentage change",
+                    "start_formatted": "Formatted values",
+                    "end_formatted": "Formatted values",
+                    "growth_formatted": "Formatted values",
+                    "is_growth": "Boolean"
+                }
+            }
+        },
+        "flags": {
+            "show_backup_stats": "True if backups data source selected",
+            "show_snapshots": "True if snapshots data source selected",
+            "show_alerts": "True if alerts data source selected",
+            "show_storage": "True if devices/storage data source selected",
+            "show_audits": "True if audits data source selected",
+            "show_virtualization": "True if virtual_machines data source selected"
+        },
+        "examples": [
+            {
+                "description": "Display backup statistics",
+                "code": "{% if show_backup_stats %}\n  <h2>Backup Statistics</h2>\n  <p>Total: {{ total_backups }}, Success Rate: {{ success_rate }}%</p>\n{% endif %}"
+            },
+            {
+                "description": "Loop through agent backup status",
+                "code": "{% for agent in agent_backup_status %}\n  <div>{{ agent.name }}: {{ agent.status }}</div>\n{% endfor %}"
+            },
+            {
+                "description": "Display calendar grid for each agent",
+                "code": "{% for agent_cal in agent_calendars %}\n  <h3>{{ agent_cal.agent_name }}</h3>\n  {% for day in agent_cal.calendar_grid %}\n    <span>{{ day.day_number }}</span>\n  {% endfor %}\n{% endfor %}"
+            }
+        ]
+    }
+    
+    return jsonify(schema)
 
 
 @app.route('/logout')

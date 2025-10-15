@@ -35,20 +35,25 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('setup-form').addEventListener('submit', async (e) => {
+    const form = document.getElementById('setup-form');
+    const apiKeyInput = document.getElementById('api-key');
+    const submitButton = document.getElementById('submit-button');
+    const errorMessage = document.getElementById('error-message');
+    
+    if (!form || !apiKeyInput || !submitButton || !errorMessage) {
+        console.error('Form elements not found');
+        return;
+    }
+    
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const apiKey = document.getElementById('api-key').value.trim();
-        const submitButton = document.getElementById('submit-button');
-        const errorMessage = document.getElementById('error-message');
-        
-        if (!errorMessage || !submitButton) {
-            console.error('Form elements not found');
-            return;
-        }
+        const apiKey = apiKeyInput.value.trim();
         
         submitButton.disabled = true;
         submitButton.innerHTML = '<span class="spinner"></span> Verifying...';
