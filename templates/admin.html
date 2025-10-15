@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Slide Reports{% endblock %}
+
+{% block content %}
+<div style="margin-top: 2rem;">
+    <h1>System Administration</h1>
+    <p class="text-muted">Manage API keys, sync settings, and system data</p>
+    
+    <!-- System Stats -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-graph-up"></i> System Overview
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="metric-label">Total API Keys</div>
+                    <div class="metric-value">{{ stats.total_keys }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-label">Total Records</div>
+                    <div class="metric-value">{{ stats.total_records }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-label">Total Storage</div>
+                    <div class="metric-value">{{ stats.total_size_formatted }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-label">Auto-Sync Enabled</div>
+                    <div class="metric-value">{{ stats.auto_sync_enabled_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- API Keys List -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-key"></i> API Keys Management
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Key Hash</th>
+                            <th>Records</th>
+                            <th>Size</th>
+                            <th>Last Sync</th>
+                            <th>Auto-Sync</th>
+                            <th>Timezone</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key in api_keys %}
+                        <tr id="key-{{ key.hash }}">
+                            <td><code>{{ key.hash_short }}...</code></td>
+                            <td>{{ key.total_records }}</td>
+                            <td>{{ format_bytes(key.total_size) }}</td>
+                            <td>
+                                {% if key.last_sync %}
+                                    <small>{{ key.last_sync[:19].replace('T', ' ') }}</small>
+                                {% else %}
+                                    <span class="text-muted">Never</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if key.auto_sync_enabled %}
+                                <span class="status-badge status-success">Enabled</span>
+                                {% else %}
+                                <span class="status-badge status-danger">Disabled</span>
+                                {% endif %}
+                            </td>
+                            <td><small>{{ key.timezone }}</small></td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="toggleAutoSync('{{ key.hash }}', {{ 'false' if key.auto_sync_enabled else 'true' }})" title="Toggle Auto-Sync">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="deleteKeyData('{{ key.hash }}', '{{ key.hash_short }}')" title="Delete All Data">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                {% if not api_keys %}
+                <div class="empty-state">
+                    <i class="bi bi-database"></i>
+                    <p>No API keys found in the system</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function toggleAutoSync(hash, enable) {
+    if (!confirm(`Are you sure you want to ${enable ? 'enable' : 'disable'} auto-sync for this API key?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/admin/api/keys/${hash}/auto-sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ enabled: enable })
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to toggle auto-sync');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteKeyData(hash, hashShort) {
+    const confirmation = prompt(`WARNING: This will permanently delete ALL data for API key ${hashShort}...\\n\\nType DELETE to confirm:`);
+    
+    if (confirmation !== 'DELETE') {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/admin/api/keys/${hash}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            alert('Data deleted successfully');
+            window.location.reload();
+        } else {
+            alert('Failed to delete data');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+</script>
+{% endblock %}
+

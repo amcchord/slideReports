@@ -284,7 +284,7 @@ const reportManager = {
     /**
      * Preview report
      */
-    async previewReport(templateId, startDate, endDate, dataSources) {
+    async previewReport(templateId, startDate, endDate, dataSources, clientId = null) {
         const previewFrame = document.getElementById('report-preview');
         const button = document.getElementById('preview-button');
         
@@ -294,17 +294,23 @@ const reportManager = {
         }
         
         try {
+            const requestBody = {
+                template_id: templateId,
+                start_date: startDate,
+                end_date: endDate,
+                data_sources: dataSources
+            };
+            
+            if (clientId) {
+                requestBody.client_id = clientId;
+            }
+            
             const response = await fetch('/api/reports/preview', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    template_id: templateId,
-                    start_date: startDate,
-                    end_date: endDate,
-                    data_sources: dataSources
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {

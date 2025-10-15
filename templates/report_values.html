@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Report Template Variables - Slide Reports{% endblock %}
+
+{% block content %}
+<div style="margin-top: 2rem;">
+    <h1>Report Template Variables Reference</h1>
+    <p class="lead">Complete list of all variables available in report templates</p>
+    
+    <!-- Global Variables -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-info-circle"></i> Global Metadata</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ logo_url }}' }}</code></td>
+                        <td>string</td>
+                        <td>URL/path to the logo image (typically <code>/static/img/logo.png</code>)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ report_title }}' }}</code></td>
+                        <td>string</td>
+                        <td>Title of the report (e.g., "Slide Backup Report" or with client name)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ date_range }}' }}</code></td>
+                        <td>string</td>
+                        <td>Human-readable date range (e.g., "January 1, 2025 - January 31, 2025")</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ generated_at }}' }}</code></td>
+                        <td>string</td>
+                        <td>Timestamp when the report was generated (in user's timezone)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ timezone }}' }}</code></td>
+                        <td>string</td>
+                        <td>User's timezone (e.g., "America/New_York")</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ client_id }}' }}</code></td>
+                        <td>string|null</td>
+                        <td>Client ID if filtering by client, null for all clients</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ client_name }}' }}</code></td>
+                        <td>string</td>
+                        <td>Client name (only present when filtering by client)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ exec_summary }}' }}</code></td>
+                        <td>string</td>
+                        <td>AI-generated executive summary (generated automatically if placeholder present)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Conditional Flags -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-check-square"></i> Data Source Flags</h3>
+        </div>
+        <div class="card-body">
+            <p>Use these flags to conditionally show/hide sections:</p>
+            <table class="table">
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{% if show_backup_stats %}' }}</code></td>
+                        <td>True if backups data source is selected</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{% if show_snapshots %}' }}</code></td>
+                        <td>True if snapshots data source is selected</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{% if show_alerts %}' }}</code></td>
+                        <td>True if alerts data source is selected</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{% if show_storage %}' }}</code></td>
+                        <td>True if devices/storage data source is selected</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{% if show_audits %}' }}</code></td>
+                        <td>True if audits data source is selected</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{% if show_virtualization %}' }}</code></td>
+                        <td>True if virtual_machines data source is selected</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Backup Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-arrow-repeat"></i> Backup Statistics</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ total_backups }}' }}</code></td>
+                        <td>int</td>
+                        <td>Total number of backups in the reporting period</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ successful_backups }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of successful backups</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ failed_backups }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of failed backups</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ success_rate }}' }}</code></td>
+                        <td>float</td>
+                        <td>Success percentage (0-100)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ agent_backup_status }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of dicts with per-agent backup status. Each has: <code>name</code>, <code>last_backup</code>, <code>status</code>, <code>status_class</code>, <code>duration</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Snapshot Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-camera"></i> Snapshot Metrics</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ active_snapshots }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of active (not deleted) snapshots</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ deleted_snapshots }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of deleted snapshots</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ local_snapshots }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of snapshots in local storage</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ cloud_snapshots }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of snapshots in cloud storage</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ retention_deleted_count }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of snapshots deleted by retention policy (normal)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ manually_deleted_count }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of manually deleted snapshots (should be uncommon)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ deletion_details }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of up to 20 deletion records with: <code>snapshot_id</code>, <code>reason</code>, <code>location</code>, <code>deleted_at</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ latest_screenshot }}' }}</code></td>
+                        <td>dict|null</td>
+                        <td>Latest verification screenshot with: <code>url</code>, <code>agent_name</code>, <code>captured_at</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Alert Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Alert Metrics</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ total_alerts }}' }}</code></td>
+                        <td>int</td>
+                        <td>Total number of alerts in the reporting period</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ unresolved_alerts }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of alerts still unresolved</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ resolved_alerts }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of resolved alerts</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Storage Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-hdd"></i> Storage Metrics</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ device_storage }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of devices with storage info. Each has: <code>name</code>, <code>used</code> (formatted), <code>total</code> (formatted), <code>percent</code> (0-100)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '{% for device in device_storage %}' }}
+  {{ '{{ device.name }}: {{ device.used }} / {{ device.total }} ({{ device.percent }}%)' }}
+{{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
+    <!-- Virtualization Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-pc-display"></i> Virtualization Metrics</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ total_vms }}' }}</code></td>
+                        <td>int</td>
+                        <td>Total number of virtual machines</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ running_vms }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of running VMs</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ stopped_vms }}' }}</code></td>
+                        <td>int</td>
+                        <td>Number of stopped VMs</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Audit Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-clipboard-data"></i> Audit Metrics</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ total_audits }}' }}</code></td>
+                        <td>int</td>
+                        <td>Total number of audit log entries</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ audit_actions }}' }}</code></td>
+                        <td>dict</td>
+                        <td>Dictionary of action types with counts (e.g., {{"{'create': 10, 'delete': 5}"}}</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ recent_audits }}' }}</code></td>
+                        <td>list</td>
+                        <td>Up to 20 most recent audit entries with full details</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h3>
+        </div>
+        <div class="card-body">
+            <a href="{{ url_for('templates_list') }}" class="btn btn-primary">
+                <i class="bi bi-layout-text-window-reverse"></i> View Templates
+            </a>
+            <a href="{{ url_for('templates_new') }}" class="btn btn-success">
+                <i class="bi bi-magic"></i> Create New Template
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

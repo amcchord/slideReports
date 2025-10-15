@@ -36,69 +36,77 @@
     </script>
     {% endif %}
     
-    <!-- Data Summary -->
-    <div class="metrics-grid">
-        <div class="metric-card">
-            <div class="metric-label">Devices</div>
-            <div class="metric-value">{{ counts.devices }}</div>
+    <!-- Dashboard 2-Column Layout -->
+    <div class="dashboard-grid">
+        <!-- Left Column: Metrics Table -->
+        <div class="dashboard-metrics">
+            <h5 class="mb-3">Data Summary</h5>
+            <table class="metrics-table">
+                <tbody>
+                    <tr>
+                        <td><i class="bi bi-hdd"></i> Devices</td>
+                        <td>{{ counts.devices }}</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-server"></i> Agents</td>
+                        <td>{{ counts.agents }}</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-arrow-repeat"></i> Backups</td>
+                        <td>{{ counts.backups }}</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-camera"></i> Snapshots</td>
+                        <td>{{ counts.snapshots }}</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-exclamation-triangle"></i> Alerts</td>
+                        <td>{{ counts.alerts }}</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-pc-display"></i> Virtual Machines</td>
+                        <td>{{ counts.virtual_machines }}</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-people"></i> Clients</td>
+                        <td>{{ counts.clients }}</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
-        <div class="metric-card">
-            <div class="metric-label">Agents</div>
-            <div class="metric-value">{{ counts.agents }}</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Backups</div>
-            <div class="metric-value">{{ counts.backups }}</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Snapshots</div>
-            <div class="metric-value">{{ counts.snapshots }}</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Alerts</div>
-            <div class="metric-value">{{ counts.alerts }}</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Virtual Machines</div>
-            <div class="metric-value">{{ counts.virtual_machines }}</div>
-        </div>
-    </div>
-    
-    <!-- Sync Status -->
-    <div class="card">
-        <div class="card-header">
-            <i class="bi bi-cloud-arrow-down"></i> Data Synchronization
-        </div>
-        <div class="card-body">
-            <p class="text-muted">
-                Timezone: <strong>{{ timezone }}</strong> 
+        
+        <!-- Right Column: Sync Status -->
+        <div class="dashboard-sync">
+            <h5 class="mb-3"><i class="bi bi-cloud-arrow-down"></i> Data Synchronization</h5>
+            <p class="text-muted small">
+                <strong>Timezone:</strong> {{ timezone }} 
                 <a href="#" onclick="changeTimezone(); return false;" class="ms-2">Change</a>
                 <br>
-                <small>Data sync limited to last 90 days</small>
+                <small>Syncing last 90 days of data</small>
             </p>
             
             <div id="sync-progress" style="display: none;">
-                <h5>Syncing Data...</h5>
+                <h6>Syncing Data...</h6>
                 <div id="sync-progress-items"></div>
             </div>
             
-            <div id="sync-status-list">
+            <div id="sync-status-list" class="sync-status-compact">
                 {% for key, status in sync_status.items() %}
                 <div class="sync-item">
-                    <div class="sync-item-header">
+                    <div class="d-flex justify-content-between align-items-center">
                         <span class="sync-item-name">{{ status.name }}</span>
                         {% if status.status == 'completed' %}
-                        <span class="status-badge status-success">✓ Synced</span>
+                        <span class="status-badge status-success">✓</span>
                         {% elif status.status == 'error' %}
-                        <span class="status-badge status-danger">✗ Error</span>
+                        <span class="status-badge status-danger">✗</span>
                         {% else %}
-                        <span class="status-badge">Not Synced</span>
+                        <span class="status-badge">-</span>
                         {% endif %}
                     </div>
-                    <div class="sync-item-status">
-                        {{ status.total_items }} items in database
+                    <div class="sync-item-status text-muted">
+                        {{ status.total_items }} items
                         {% if status.last_sync %}
-                        • Last synced: {{ status.last_sync }}
+                        • {{ status.last_sync_friendly }}
                         {% endif %}
                     </div>
                     {% if status.error_message %}

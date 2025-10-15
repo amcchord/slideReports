@@ -15,6 +15,7 @@ from lib.templates import TemplateManager
 from lib.ai_generator import AITemplateGenerator
 from lib.report_generator import ReportGenerator
 from lib.background_sync import background_sync
+from lib.scheduler import auto_sync_scheduler
 
 # Application version
 VERSION = "1.0.0"
@@ -133,6 +134,10 @@ def api_setup():
 @require_api_key
 def dashboard(api_key, api_key_hash):
     """Main dashboard"""
+    from datetime import datetime
+    import pytz
+    from lib.report_generator import format_datetime_friendly
+    
     db = Database(get_database_path(api_key_hash))
     
     # Get sync status
@@ -147,6 +152,18 @@ def dashboard(api_key, api_key_hash):
     
     # Get timezone
     timezone = db.get_preference('timezone', 'America/New_York')
+    user_tz = pytz.timezone(timezone)
+    
+    # Add friendly date formatting to sync status
+    for key, status in sync_status.items():
+        if status.get('last_sync'):
+            try:
+                last_sync_dt = datetime.fromisoformat(status['last_sync'].replace('Z', '+00:00'))
+                status['last_sync_friendly'] = format_datetime_friendly(last_sync_dt, user_tz)
+            except Exception:
+                status['last_sync_friendly'] = 'Unknown'
+        else:
+            status['last_sync_friendly'] = 'Never'
     
     return render_template('dashboard.html',
                          sync_status=sync_status,
@@ -218,6 +235,16 @@ def api_data_sources(api_key, api_key_hash):
         })
     
     return jsonify(sources)
+
+
+@app.route('/api/clients')
+@require_api_key
+def api_clients(api_key, api_key_hash):
+    """Get list of clients"""
+    db = Database(get_database_path(api_key_hash))
+    clients = db.get_records('clients', order_by='name')
+    
+    return jsonify(clients)
 
 
 @app.route('/templates')
@@ -365,9 +392,13 @@ def reports_builder(api_key, api_key_hash):
             'count': counts.get(key, 0)
         })
     
+    # Get list of clients for filtering
+    clients = db.get_records('clients', order_by='name')
+    
     return render_template('report_builder.html',
                          templates=templates,
                          data_sources=data_sources,
+                         clients=clients,
                          timezone=timezone)
 
 
@@ -380,6 +411,7 @@ def api_reports_preview(api_key, api_key_hash):
     start_date_str = data.get('start_date')
     end_date_str = data.get('end_date')
     data_sources = data.get('data_sources', [])
+    client_id = data.get('client_id')  # Optional client filter
     
     # Parse dates
     start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
@@ -402,7 +434,9 @@ def api_reports_preview(api_key, api_key_hash):
             start_date,
             end_date,
             data_sources,
-            logo_url='/static/img/logo.png'
+            logo_url='/static/img/logo.png',
+            client_id=client_id,
+            ai_generator=ai_generator
         )
         return jsonify({'html': html})
     except Exception as e:
@@ -426,6 +460,13 @@ def api_set_timezone(api_key, api_key_hash):
     return jsonify({'success': True})
 
 
+@app.route('/report-values')
+@require_api_key
+def report_values_docs(api_key, api_key_hash):
+    """Documentation page for all available report template variables"""
+    return render_template('report_values.html')
+
+
 @app.route('/logout')
 def logout():
     """Clear API key cookie"""
@@ -434,10 +475,148 @@ def logout():
     return response
 
 
+@app.route('/api/preferences/auto-sync', methods=['POST'])
+@require_api_key
+def api_set_auto_sync(api_key, api_key_hash):
+    """Toggle auto-sync preference"""
+    data = request.get_json()
+    enabled = data.get('enabled', True)
+    
+    db = Database(get_database_path(api_key_hash))
+    db.set_preference('auto_sync_enabled', 'true' if enabled else 'false')
+    
+    return jsonify({'success': True, 'enabled': enabled})
+
+
+@app.route('/api/sync/next')
+@require_api_key
+def api_sync_next(api_key, api_key_hash):
+    """Get next scheduled sync time"""
+    db = Database(get_database_path(api_key_hash))
+    auto_sync_enabled = db.get_preference('auto_sync_enabled', 'true').lower() == 'true'
+    frequency_hours = int(db.get_preference('auto_sync_frequency_hours', '1'))
+    
+    # Get last sync time
+    bg_state = background_sync.get_sync_state(api_key_hash)
+    last_sync = bg_state.get('completed_at')
+    
+    next_sync = None
+    if auto_sync_enabled and last_sync:
+        from datetime import datetime, timedelta
+        last_sync_dt = datetime.fromisoformat(last_sync)
+        next_sync_dt = last_sync_dt + timedelta(hours=frequency_hours)
+        next_sync = next_sync_dt.isoformat()
+    
+    return jsonify({
+        'auto_sync_enabled': auto_sync_enabled,
+        'frequency_hours': frequency_hours,
+        'last_sync': last_sync,
+        'next_sync': next_sync
+    })
+
+
 @app.route('/health')
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'version': VERSION})
+
+
+# Admin Routes
+def require_admin_auth(f):
+    """Decorator to require admin authentication"""
+    def wrapper(*args, **kwargs):
+        admin_pass = os.environ.get('ADMIN_PASS')
+        if not admin_pass:
+            return jsonify({'error': 'Admin functionality not configured'}), 503
+        
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or auth_header != f'Bearer {admin_pass}':
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        return f(*args, **kwargs)
+    wrapper.__name__ = f.__name__
+    return wrapper
+
+
+@app.route('/admin')
+def admin_page():
+    """Admin dashboard page"""
+    admin_pass = os.environ.get('ADMIN_PASS')
+    if not admin_pass:
+        return render_template('error.html', error='Admin functionality not configured'), 503
+    
+    # Check if authorized via session or show login
+    auth_token = request.cookies.get('admin_auth')
+    if auth_token != admin_pass:
+        # Show simple login page
+        return render_template('admin_login.html')
+    
+    from lib.admin_utils import list_all_api_keys, get_system_stats, format_bytes
+    
+    api_keys = list_all_api_keys()
+    stats = get_system_stats()
+    
+    return render_template('admin.html', 
+                         api_keys=api_keys, 
+                         stats=stats,
+                         format_bytes=format_bytes)
+
+
+@app.route('/admin/auth', methods=['POST'])
+def admin_auth():
+    """Authenticate admin"""
+    admin_pass = os.environ.get('ADMIN_PASS')
+    if not admin_pass:
+        return jsonify({'error': 'Admin functionality not configured'}), 503
+    
+    data = request.get_json()
+    password = data.get('password')
+    
+    if password == admin_pass:
+        response = jsonify({'success': True})
+        response.set_cookie('admin_auth', admin_pass, max_age=86400)  # 24 hours
+        return response
+    
+    return jsonify({'error': 'Invalid password'}), 401
+
+
+@app.route('/admin/api/keys/<api_key_hash>/auto-sync', methods=['POST'])
+def admin_toggle_auto_sync(api_key_hash):
+    """Toggle auto-sync for a specific API key"""
+    admin_pass = os.environ.get('ADMIN_PASS')
+    auth_token = request.cookies.get('admin_auth')
+    
+    if not admin_pass or auth_token != admin_pass:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    from lib.admin_utils import toggle_auto_sync
+    
+    data = request.get_json()
+    enabled = data.get('enabled', True)
+    
+    success = toggle_auto_sync(api_key_hash, enabled)
+    
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'error': 'Failed to toggle auto-sync'}), 500
+
+
+@app.route('/admin/api/keys/<api_key_hash>', methods=['DELETE'])
+def admin_delete_key(api_key_hash):
+    """Delete all data for a specific API key"""
+    admin_pass = os.environ.get('ADMIN_PASS')
+    auth_token = request.cookies.get('admin_auth')
+    
+    if not admin_pass or auth_token != admin_pass:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    from lib.admin_utils import delete_key_data
+    
+    success = delete_key_data(api_key_hash)
+    
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'error': 'Failed to delete data'}), 500
 
 
 # Error Handlers
@@ -453,6 +632,13 @@ def server_error(e):
 
 
 if __name__ == '__main__':
+    # Start auto-sync scheduler when running directly
+    try:
+        auto_sync_scheduler.start()
+        logger.info("Auto-sync scheduler initialized")
+    except Exception as e:
+        logger.error(f"Failed to start auto-sync scheduler: {e}")
+    
     # Only run in debug mode if not in production
     debug_mode = os.environ.get('FLASK_ENV', 'development') != 'production'
     app.run(debug=debug_mode, host='0.0.0.0', port=5000)

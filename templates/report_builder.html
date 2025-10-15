@@ -13,7 +13,7 @@
         <div class="card-body">
             <form id="report-form">
                 <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label for="template-select" class="form-label">Template</label>
                         <select class="form-select" id="template-select" required>
                             {% for template in templates %}
@@ -23,11 +23,20 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
+                        <label for="client-select" class="form-label">Client Filter</label>
+                        <select class="form-select" id="client-select">
+                            <option value="">All Clients</option>
+                            {% for client in clients %}
+                            <option value="{{ client.client_id }}">{{ client.name or client.client_id }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <label for="start-date" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="start-date" required>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="end-date" class="form-label">End Date</label>
                         <input type="date" class="form-control" id="end-date" required>
                     </div>
@@ -97,6 +106,7 @@ function getSelectedDataSources() {
 
 async function previewReport() {
     const templateId = document.getElementById('template-select').value;
+    const clientId = document.getElementById('client-select').value;
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
     const dataSources = getSelectedDataSources();
@@ -115,7 +125,8 @@ async function previewReport() {
         templateId,
         startDate,
         endDate,
-        dataSources
+        dataSources,
+        clientId
     );
     
     // Show preview card

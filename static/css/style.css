@@ -33,7 +33,7 @@ body {
 .navbar {
     background-color: var(--card-bg);
     border-bottom: 1px solid var(--border-color);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .navbar-brand {
@@ -68,13 +68,13 @@ body {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     margin-bottom: 1.5rem;
     transition: box-shadow 0.2s ease;
 }
 
 .card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .card-header {
@@ -253,7 +253,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .metric-label {
@@ -423,6 +423,70 @@ body {
     color: var(--danger-color);
 }
 
+/* Dashboard 2-Column Layout */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.dashboard-metrics {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-sync {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.metrics-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.metrics-table td {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.metrics-table td:first-child {
+    font-weight: 600;
+    color: var(--text-secondary);
+    width: 60%;
+}
+
+.metrics-table td:last-child {
+    text-align: right;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.metrics-table tr:last-child td {
+    border-bottom: none;
+}
+
+.sync-status-compact {
+    font-size: 0.875rem;
+}
+
+.sync-status-compact .sync-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sync-status-compact .sync-item:last-child {
+    border-bottom: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .template-editor {
@@ -430,6 +494,10 @@ body {
     }
     
     .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-grid {
         grid-template-columns: 1fr;
     }
     
