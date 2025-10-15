@@ -559,15 +559,51 @@
                 </tbody>
             </table>
             
-            <p><strong>Example usage:</strong></p>
+            <h5 class="mt-4">Common Patterns</h5>
+            <p><strong>Getting Device/Agent Names:</strong></p>
+            <pre><code>{{ '{# Device name - display_name is preferred, falls back to hostname #}' }}
+{{ '{{ device.display_name or device.hostname or device.device_id }}' }}
+
+{{ '{# Agent name - same pattern #}' }}
+{{ '{{ agent.display_name or agent.hostname or agent.agent_id }}' }}</code></pre>
+            
+            <p><strong>Looping Through All Devices:</strong></p>
             <pre><code>{{ '{% for device in devices %}' }}
-  {{ '<h4>{{ device.display_name or device.hostname }}</h4>' }}
-  {{ '{% if device.storage_used_bytes and device.storage_total_bytes %}' }}
-    {{ '<p>Storage: {{ (device.storage_used_bytes / 1024**3)|round(1) }} GB / {{ (device.storage_total_bytes / 1024**3)|round(1) }} GB</p>' }}
-  {{ '{% else %}' }}
-    {{ '<p>Storage: N/A</p>' }}
-  {{ '{% endif %}' }}
+  {{ '<div class="device">' }}
+    {{ '<h4>{{ device.display_name or device.hostname }}</h4>' }}
+    {{ '<p>OS: {{ device.os or "Unknown" }} {{ device.os_version or "" }}</p>' }}
+    {{ '{% if device.storage_used_bytes and device.storage_total_bytes %}' }}
+      {{ '<p>Storage: {{ (device.storage_used_bytes / 1024**3)|round(1) }} GB / {{ (device.storage_total_bytes / 1024**3)|round(1) }} GB</p>' }}
+    {{ '{% endif %}' }}
+  {{ '</div>' }}
 {{ '{% endfor %}' }}</code></pre>
+            
+            <p><strong>Looping Through All Agents:</strong></p>
+            <pre><code>{{ '{% for agent in agents %}' }}
+  {{ '<div class="agent">' }}
+    {{ '<h4>{{ agent.display_name or agent.hostname }}</h4>' }}
+    {{ '<p>ID: {{ agent.agent_id }}</p>' }}
+    {{ '{% if agent.os %}' }}
+      {{ '<p>OS: {{ agent.os }} {{ agent.arch or "" }}</p>' }}
+    {{ '{% endif %}' }}
+  {{ '</div>' }}
+{{ '{% endfor %}' }}</code></pre>
+            
+            <p><strong>Finding Related Data (e.g., Backups for an Agent):</strong></p>
+            <pre><code>{{ '{% for agent in agents %}' }}
+  {{ '<h3>{{ agent.display_name or agent.hostname }}</h3>' }}
+  {{ '<h4>Recent Backups:</h4>' }}
+  {{ '{% for backup in backups %}' }}
+    {{ '{% if backup.agent_id == agent.agent_id %}' }}
+      {{ '<p>{{ backup.started_at }}: {{ backup.status }}</p>' }}
+    {{ '{% endif %}' }}
+  {{ '{% endfor %}' }}
+{{ '{% endfor %}' }}</code></pre>
+            
+            <p><strong>Counting Items:</strong></p>
+            <pre><code>{{ '<p>Total Devices: {{ devices|length }}</p>' }}
+{{ '<p>Total Agents: {{ agents|length }}</p>' }}
+{{ '<p>Backups in Period: {{ backups|length }}</p>' }}</code></pre>
         </div>
     </div>
 

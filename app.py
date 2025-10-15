@@ -1030,16 +1030,36 @@ def api_template_schema(api_key, api_key_hash):
         },
         "examples": [
             {
-                "description": "Display backup statistics",
+                "description": "Getting device or agent name (with fallbacks)",
+                "code": "{{ device.display_name or device.hostname or device.device_id }}\n{{ agent.display_name or agent.hostname or agent.agent_id }}"
+            },
+            {
+                "description": "Loop through all devices with safe name access",
+                "code": "{% for device in devices %}\n  <h4>{{ device.display_name or device.hostname }}</h4>\n  <p>OS: {{ device.os or 'Unknown' }}</p>\n{% endfor %}"
+            },
+            {
+                "description": "Loop through all agents",
+                "code": "{% for agent in agents %}\n  <div>{{ agent.display_name or agent.hostname }}: {{ agent.os }}</div>\n{% endfor %}"
+            },
+            {
+                "description": "Find backups for a specific agent",
+                "code": "{% for agent in agents %}\n  <h3>{{ agent.display_name or agent.hostname }}</h3>\n  {% for backup in backups %}\n    {% if backup.agent_id == agent.agent_id %}\n      <p>{{ backup.started_at }}: {{ backup.status }}</p>\n    {% endif %}\n  {% endfor %}\n{% endfor %}"
+            },
+            {
+                "description": "Display backup statistics with preprocessed data",
                 "code": "{% if show_backup_stats %}\n  <h2>Backup Statistics</h2>\n  <p>Total: {{ total_backups }}, Success Rate: {{ success_rate }}%</p>\n{% endif %}"
             },
             {
-                "description": "Loop through agent backup status",
-                "code": "{% for agent in agent_backup_status %}\n  <div>{{ agent.name }}: {{ agent.status }}</div>\n{% endfor %}"
+                "description": "Loop through agent backup status (preprocessed)",
+                "code": "{% for agent in agent_backup_status %}\n  <div>{{ agent.name }}: {{ agent.status }} ({{ agent.duration }})</div>\n{% endfor %}"
             },
             {
-                "description": "Display calendar grid for each agent",
-                "code": "{% for agent_cal in agent_calendars %}\n  <h3>{{ agent_cal.agent_name }}</h3>\n  {% for day in agent_cal.calendar_grid %}\n    <span>{{ day.day_number }}</span>\n  {% endfor %}\n{% endfor %}"
+                "description": "Display device storage with null safety",
+                "code": "{% for device in devices %}\n  <h4>{{ device.display_name or device.hostname }}</h4>\n  {% if device.storage_used_bytes and device.storage_total_bytes %}\n    <p>{{ (device.storage_used_bytes / 1024**3)|round(1) }} GB / {{ (device.storage_total_bytes / 1024**3)|round(1) }} GB</p>\n  {% else %}\n    <p>Storage: N/A</p>\n  {% endif %}\n{% endfor %}"
+            },
+            {
+                "description": "Count items with length filter",
+                "code": "<p>Devices: {{ devices|length }}</p>\n<p>Agents: {{ agents|length }}</p>\n<p>Backups: {{ backups|length }}</p>"
             }
         ]
     }
