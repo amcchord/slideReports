@@ -37,41 +37,49 @@
 </div>
 
 <script>
-document.getElementById('setup-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const apiKey = document.getElementById('api-key').value.trim();
-    const submitButton = document.getElementById('submit-button');
-    const errorMessage = document.getElementById('error-message');
-    
-    submitButton.disabled = true;
-    submitButton.innerHTML = '<span class="spinner"></span> Verifying...';
-    errorMessage.style.display = 'none';
-    
-    try {
-        const response = await fetch('/api/setup', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ api_key: apiKey })
-        });
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('setup-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        if (response.ok) {
-            window.location.href = '/dashboard';
-        } else {
-            const data = await response.json();
-            errorMessage.textContent = data.error || 'Setup failed';
+        const apiKey = document.getElementById('api-key').value.trim();
+        const submitButton = document.getElementById('submit-button');
+        const errorMessage = document.getElementById('error-message');
+        
+        if (!errorMessage || !submitButton) {
+            console.error('Form elements not found');
+            return;
+        }
+        
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner"></span> Verifying...';
+        errorMessage.style.display = 'none';
+        
+        try {
+            const response = await fetch('/api/setup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ api_key: apiKey })
+            });
+            
+            if (response.ok) {
+                window.location.href = '/dashboard';
+            } else {
+                const data = await response.json();
+                errorMessage.textContent = data.error || 'Setup failed';
+                errorMessage.style.display = 'block';
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="bi bi-check-circle"></i> Continue';
+            }
+        } catch (error) {
+            console.error('Setup error:', error);
+            errorMessage.textContent = 'Connection error. Please try again.';
             errorMessage.style.display = 'block';
             submitButton.disabled = false;
             submitButton.innerHTML = '<i class="bi bi-check-circle"></i> Continue';
         }
-    } catch (error) {
-        errorMessage.textContent = 'Connection error. Please try again.';
-        errorMessage.style.display = 'block';
-        submitButton.disabled = false;
-        submitButton.innerHTML = '<i class="bi bi-check-circle"></i> Continue';
-    }
+    });
 });
 </script>
 {% endblock %}

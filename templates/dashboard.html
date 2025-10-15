@@ -24,9 +24,14 @@
     </div>
     <script>
     // Auto-poll if sync is in progress on page load
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
         window.slideReports.syncManager.isSyncing = true;
-        window.slideReports.syncManager.pollSyncStatus();
+        await window.slideReports.syncManager.pollSyncStatus();
+        
+        // Reload after sync completes
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     });
     </script>
     {% endif %}
