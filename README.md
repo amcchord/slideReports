@@ -5,6 +5,16 @@ A Flask-based web application for generating customizable reports about Slide ba
 **Author:** Austin McChord  
 **License:** MIT License
 
+🌐 **Live Demo:** Check it out at [https://reports.slide.recipes](https://reports.slide.recipes)
+
+## Quick Demo
+
+<video src="QuickDemo.mp4" controls width="100%">
+  Your browser does not support the video tag. <a href="QuickDemo.mp4">Download the demo video</a>.
+</video>
+
+*Watch a quick walkthrough of creating AI-generated templates and building custom reports.*
+
 ## Features
 
 - **Secure Authentication**: Encrypted API key storage using cookies
