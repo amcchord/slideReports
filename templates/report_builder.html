@@ -43,6 +43,19 @@
                 </div>
                 
                 <div class="mb-3">
+                    <label class="form-label">Quick Date Selection</label>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setThisWeek()">This Week</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setLastWeek()">Last Week</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setThisMonth()">This Month</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setLastMonth()">Last Month</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setThisQuarter()">This Quarter</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setLastQuarter()">Last Quarter</button>
+                    </div>
+                    <div id="date-range-hint" class="form-text mt-2" style="display: none;"></div>
+                </div>
+                
+                <div class="mb-3">
                     <label class="form-label">Data Sources to Include</label>
                     <div class="row">
                         {% for source in data_sources %}
@@ -82,11 +95,21 @@
 </div>
 
 <script>
-// Set default date range (last 30 days)
+// Template metadata for date range validation
+const templateMetadata = {
+    {% for template in templates %}
+    '{{ template.template_id }}': {
+        name: '{{ template.name }}',
+        type: {% if 'Weekly' in template.name %}'weekly'{% elif 'Monthly' in template.name %}'monthly'{% elif 'Quarterly' in template.name %}'quarterly'{% else %}'custom'{% endif %}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Set default date range (last 7 days for weekly by default)
 window.addEventListener('DOMContentLoaded', () => {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
+    startDate.setDate(startDate.getDate() - 7);
     
     document.getElementById('end-date').valueAsDate = endDate;
     document.getElementById('start-date').valueAsDate = startDate;
@@ -97,11 +120,145 @@ window.addEventListener('DOMContentLoaded', () => {
     if (templateId) {
         document.getElementById('template-select').value = templateId;
     }
+    
+    // Add template change listener
+    document.getElementById('template-select').addEventListener('change', updateDateRangeHint);
+    updateDateRangeHint();
 });
 
 function getSelectedDataSources() {
     const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
     return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function updateDateRangeHint() {
+    const templateId = document.getElementById('template-select').value;
+    const metadata = templateMetadata[templateId];
+    const hintElement = document.getElementById('date-range-hint');
+    
+    if (!metadata) return;
+    
+    if (metadata.type === 'weekly') {
+        hintElement.textContent = 'Recommended: Select exactly 7 consecutive days (one week)';
+        hintElement.className = 'form-text mt-2 text-info';
+        hintElement.style.display = 'block';
+    } else if (metadata.type === 'monthly') {
+        hintElement.textContent = 'Recommended: Select a full calendar month (first day to last day)';
+        hintElement.className = 'form-text mt-2 text-info';
+        hintElement.style.display = 'block';
+    } else if (metadata.type === 'quarterly') {
+        hintElement.textContent = 'Recommended: Select exactly 13 weeks (91-92 days) or 3 full months';
+        hintElement.className = 'form-text mt-2 text-info';
+        hintElement.style.display = 'block';
+    } else {
+        hintElement.style.display = 'none';
+    }
+}
+
+function setThisWeek() {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - dayOfWeek);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    
+    document.getElementById('start-date').valueAsDate = startDate;
+    document.getElementById('end-date').valueAsDate = endDate;
+}
+
+function setLastWeek() {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - dayOfWeek - 7);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    
+    document.getElementById('start-date').valueAsDate = startDate;
+    document.getElementById('end-date').valueAsDate = endDate;
+}
+
+function setThisMonth() {
+    const today = new Date();
+    const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    document.getElementById('start-date').valueAsDate = startDate;
+    document.getElementById('end-date').valueAsDate = endDate;
+}
+
+function setLastMonth() {
+    const today = new Date();
+    const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+    
+    document.getElementById('start-date').valueAsDate = startDate;
+    document.getElementById('end-date').valueAsDate = endDate;
+}
+
+function setThisQuarter() {
+    const today = new Date();
+    const quarter = Math.floor(today.getMonth() / 3);
+    const startDate = new Date(today.getFullYear(), quarter * 3, 1);
+    const endDate = new Date(today.getFullYear(), quarter * 3 + 3, 0);
+    
+    document.getElementById('start-date').valueAsDate = startDate;
+    document.getElementById('end-date').valueAsDate = endDate;
+}
+
+function setLastQuarter() {
+    const today = new Date();
+    const quarter = Math.floor(today.getMonth() / 3) - 1;
+    const year = quarter < 0 ? today.getFullYear() - 1 : today.getFullYear();
+    const adjustedQuarter = quarter < 0 ? 3 : quarter;
+    const startDate = new Date(year, adjustedQuarter * 3, 1);
+    const endDate = new Date(year, adjustedQuarter * 3 + 3, 0);
+    
+    document.getElementById('start-date').valueAsDate = startDate;
+    document.getElementById('end-date').valueAsDate = endDate;
+}
+
+function validateDateRange() {
+    const templateId = document.getElementById('template-select').value;
+    const metadata = templateMetadata[templateId];
+    const startDate = new Date(document.getElementById('start-date').value);
+    const endDate = new Date(document.getElementById('end-date').value);
+    
+    if (!metadata || metadata.type === 'custom') {
+        return { valid: true };
+    }
+    
+    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    
+    if (metadata.type === 'weekly') {
+        if (daysDiff !== 7) {
+            return {
+                valid: false,
+                message: 'Weekly reports require exactly 7 consecutive days. Current selection: ' + daysDiff + ' days.'
+            };
+        }
+    } else if (metadata.type === 'monthly') {
+        const isFirstDay = startDate.getDate() === 1;
+        const isLastDay = endDate.getDate() === new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0).getDate();
+        const sameMonth = startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear();
+        
+        if (!isFirstDay || !isLastDay || !sameMonth) {
+            return {
+                valid: false,
+                message: 'Monthly reports require a full calendar month (first day to last day of the same month).'
+            };
+        }
+    } else if (metadata.type === 'quarterly') {
+        if (daysDiff < 89 || daysDiff > 92) {
+            return {
+                valid: false,
+                message: 'Quarterly reports require approximately 13 weeks (89-92 days). Current selection: ' + daysDiff + ' days.'
+            };
+        }
+    }
+    
+    return { valid: true };
 }
 
 async function previewReport() {
@@ -119,6 +276,16 @@ async function previewReport() {
     if (dataSources.length === 0) {
         alert('Please select at least one data source');
         return;
+    }
+    
+    // Validate date range for template type
+    const validation = validateDateRange();
+    if (!validation.valid) {
+        if (confirm(validation.message + '\n\nDo you want to continue anyway?')) {
+            // User confirmed, proceed with warning
+        } else {
+            return;
+        }
     }
     
     await window.slideReports.reportManager.previewReport(

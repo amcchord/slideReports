@@ -4,7 +4,14 @@
 
 {% block content %}
 <div style="margin-top: 2rem;">
-    <h1>{% if template %}Edit{% else %}Create New{% endif %} Template</h1>
+    {% if template and template.is_builtin %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> This is a built-in recipe template and cannot be edited. 
+        You can create a copy to customize it.
+    </div>
+    {% endif %}
+    
+    <h1>{% if template and template.is_builtin %}View{% elif template %}Edit{% else %}Create New{% endif %} Template</h1>
     
     <div class="card mb-4">
         <div class="card-body">
@@ -12,7 +19,8 @@
                 <div class="mb-3">
                     <label for="template-name" class="form-label">Template Name</label>
                     <input type="text" class="form-control" id="template-name" 
-                           value="{% if template %}{{ template.name }}{% endif %}" required>
+                           value="{% if template %}{{ template.name }}{% endif %}" 
+                           {% if template and template.is_builtin %}readonly{% endif %} required>
                 </div>
                 
                 <div class="mb-3">

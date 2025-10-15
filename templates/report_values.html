@@ -344,6 +344,124 @@
         </div>
     </div>
 
+    <!-- Calendar Grid Data -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-calendar3"></i> Calendar Grid Data</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ agent_calendars }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of calendar objects per agent. Each has: <code>agent_name</code>, <code>agent_id</code>, <code>calendar_grid</code> (list of day objects)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><strong>Calendar Grid Day Object Structure:</strong></p>
+            <ul>
+                <li><code>date</code> - Date string (YYYY-MM-DD)</li>
+                <li><code>day_of_week</code> - Day abbreviation (Mon, Tue, etc.)</li>
+                <li><code>day_number</code> - Day of month (1-31)</li>
+                <li><code>backup_status</code> - Status: 'success', 'failed', 'running', or 'none'</li>
+                <li><code>retention_count</code> - Number of retention deletions on this day</li>
+                <li><code>has_snapshot</code> - Boolean indicating if snapshot exists</li>
+            </ul>
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '{% for agent_cal in agent_calendars %}' }}
+  {{ '<h3>{{ agent_cal.agent_name }}</h3>' }}
+  {{ '{% for day in agent_cal.calendar_grid %}' }}
+    {{ '<div>{{ day.day_number }}: {{ day.backup_status }}</div>' }}
+  {{ '{% endfor %}' }}
+{{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
+    <!-- Screenshot Pairs -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-images"></i> Screenshot Pairs</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ agent_screenshots }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of screenshot pairs per agent. Each has: <code>agent_name</code>, <code>agent_id</code>, <code>oldest_screenshot</code>, <code>newest_screenshot</code></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><strong>Screenshot Object Structure:</strong></p>
+            <ul>
+                <li><code>url</code> - Full URL to screenshot image</li>
+                <li><code>date</code> - Formatted date/time string</li>
+                <li><code>snapshot_id</code> - Snapshot identifier (truncated)</li>
+            </ul>
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '{% for agent in agent_screenshots %}' }}
+  {{ '<h3>{{ agent.agent_name }}</h3>' }}
+  {{ '{% if agent.oldest_screenshot %}' }}
+    {{ '<img src="{{ agent.oldest_screenshot.url }}" alt="Oldest">' }}
+  {{ '{% endif %}' }}
+  {{ '{% if agent.newest_screenshot %}' }}
+    {{ '<img src="{{ agent.newest_screenshot.url }}" alt="Newest">' }}
+  {{ '{% endif %}' }}
+{{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
+    <!-- Storage Growth -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-graph-up"></i> Storage Growth Metrics</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ storage_growth }}' }}</code></td>
+                        <td>dict</td>
+                        <td>Overall storage growth metrics with: <code>start_bytes</code>, <code>end_bytes</code>, <code>growth_bytes</code>, <code>growth_percent</code>, <code>start_formatted</code>, <code>end_formatted</code>, <code>growth_formatted</code>, <code>is_growth</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ device_storage_growth }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of per-device growth metrics. Each device has: <code>device_name</code>, <code>start_bytes</code>, <code>end_bytes</code>, <code>growth_bytes</code>, <code>growth_percent</code>, and formatted versions</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '<p>Overall growth: {{ storage_growth.growth_formatted }} ({{ storage_growth.growth_percent }}%)</p>' }}
+
+{{ '{% for device in device_storage_growth %}' }}
+  {{ '<p>{{ device.device_name }}: {{ device.growth_formatted }}</p>' }}
+{{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
     <!-- Quick Actions -->
     <div class="card">
         <div class="card-header">

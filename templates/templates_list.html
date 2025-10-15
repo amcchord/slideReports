@@ -20,6 +20,9 @@
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h5 class="card-title">
                             {{ template.name }}
+                            {% if template.is_builtin %}
+                            <span class="badge bg-success">Built-in Recipe</span>
+                            {% endif %}
                             {% if template.is_default %}
                             <span class="badge bg-primary">Default</span>
                             {% endif %}
@@ -36,13 +39,19 @@
                     </p>
                     
                     <div class="d-grid gap-2 d-md-flex">
+                        {% if template.is_builtin %}
+                        <a href="{{ url_for('templates_view', template_id=template.template_id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                        {% else %}
                         <a href="{{ url_for('templates_view', template_id=template.template_id) }}" class="btn btn-sm btn-primary">
                             <i class="bi bi-pencil"></i> Edit
                         </a>
+                        {% endif %}
                         <button onclick="useTemplate({{ template.template_id }})" class="btn btn-sm btn-success">
                             <i class="bi bi-file-earmark-text"></i> Use in Report
                         </button>
-                        {% if not template.is_default %}
+                        {% if not template.is_builtin %}
                         <button onclick="deleteTemplate({{ template.template_id }})" class="btn btn-sm btn-danger">
                             <i class="bi bi-trash"></i> Delete
                         </button>

@@ -331,6 +331,10 @@ def api_templates_create(api_key, api_key_hash):
 @require_api_key
 def api_templates_update(api_key, api_key_hash, template_id):
     """Update template"""
+    # Prevent editing built-in templates
+    if template_id < 0:
+        return jsonify({'error': 'Cannot edit built-in templates'}), 400
+    
     data = request.get_json()
     
     tm = TemplateManager(api_key_hash)
@@ -348,6 +352,10 @@ def api_templates_update(api_key, api_key_hash, template_id):
 @require_api_key
 def api_templates_delete(api_key, api_key_hash, template_id):
     """Delete template"""
+    # Prevent deleting built-in templates
+    if template_id < 0:
+        return jsonify({'error': 'Cannot delete built-in templates'}), 400
+    
     tm = TemplateManager(api_key_hash)
     tm.delete_template(template_id)
     
