@@ -9,8 +9,8 @@ A Flask-based web application for generating customizable reports about Slide ba
 
 ## Quick Demo
 
-<video src="QuickDemo.mp4" controls width="100%">
-  Your browser does not support the video tag. <a href="QuickDemo.mp4">Download the demo video</a>.
+<video src="docs/QuickDemoSmall.mov" controls width="100%">
+  Your browser does not support the video tag. <a href="docs/QuickDemoSmall.mov">Download the demo video</a>.
 </video>
 
 *Watch a quick walkthrough of creating AI-generated templates and building custom reports.*
