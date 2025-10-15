@@ -2,15 +2,22 @@
 
 A Flask-based web application for generating customizable reports about Slide backup data. Uses AI-powered template generation with Claude, SQLite for data caching, and encrypted API key storage for security.
 
+**Author:** Austin McChord  
+**License:** MIT License
+
 ## Features
 
 - **Secure Authentication**: Encrypted API key storage using cookies
+- **Admin Panel**: Administrative interface for managing templates and system settings
 - **Data Synchronization**: Manual sync of Slide data with progress tracking
-- **AI-Powered Templates**: Generate custom report templates using natural language descriptions
+- **AI-Powered Templates**: Generate custom report templates using natural language descriptions with Claude AI
+- **Template Editor**: Monaco-powered code editor for creating and customizing HTML templates
 - **Flexible Report Builder**: Select data sources, date ranges, and templates
+- **Report Values Preview**: View and validate data before generating reports
 - **Print/PDF Export**: Generate print-ready reports via browser
 - **Multi-User Support**: Isolated databases per API key
 - **Timezone Support**: Display times in user's preferred timezone (defaults to Eastern)
+- **Custom Fonts**: Includes Datto Din font family for professional branding
 
 ## Architecture
 
@@ -201,10 +208,18 @@ Each data source tracks specific metrics:
 - `DELETE /api/templates/{id}` - Delete template
 - `POST /api/templates/generate` - Generate with AI
 
+### Admin
+
+- `GET /admin/login` - Admin login page
+- `POST /api/admin/login` - Admin authentication
+- `GET /admin` - Admin dashboard
+
 ### Reports
 
 - `GET /reports/builder` - Report builder interface
+- `GET /reports/values` - Report values preview interface
 - `POST /api/reports/preview` - Generate preview
+- `POST /api/reports/values` - Get available report data values
 
 ### Preferences
 
@@ -269,6 +284,9 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 │   ├── templates_list.html
 │   ├── template_editor.html
 │   ├── report_builder.html
+│   ├── report_values.html
+│   ├── admin_login.html
+│   ├── admin.html
 │   └── error.html
 ├── static/               # Static assets
 │   ├── css/
@@ -280,6 +298,7 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 │   ├── img/
 │   │   └── logo.png
 │   └── fonts/
+│       └── dattoDin/     # Datto Din font family
 └── data/                 # SQLite databases (not in git)
 ```
 
@@ -312,8 +331,28 @@ Current version: 1.0.0
 For issues or questions:
 1. Check the Slide API documentation: https://docs.slide.tech
 2. Review application logs
-3. Contact Slide support
+3. Open an issue on GitHub
 
 ## License
 
-Proprietary - Slide Inc.
+MIT License
+
+Copyright (c) 2025 Austin McChord
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
