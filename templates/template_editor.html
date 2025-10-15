@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}{% if template %}Edit{% else %}New{% endif %} Template - Slide Reports{% endblock %}
+
+{% block content %}
+<div style="margin-top: 2rem;">
+    <h1>{% if template %}Edit{% else %}Create New{% endif %} Template</h1>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="template-form">
+                <div class="mb-3">
+                    <label for="template-name" class="form-label">Template Name</label>
+                    <input type="text" class="form-control" id="template-name" 
+                           value="{% if template %}{{ template.name }}{% endif %}" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="template-description" class="form-label">Description</label>
+                    <textarea class="form-control" id="template-description" rows="2">{% if template %}{{ template.description }}{% endif %}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Data Sources to Include</label>
+                    <div class="row">
+                        {% for source in data_sources %}
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       value="{{ source.key }}" id="source-{{ source.key }}" checked>
+                                <label class="form-check-label" for="source-{{ source.key }}">
+                                    {{ source.name }} ({{ source.count }})
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="template-editor">
+        <div class="editor-panel">
+            <h3>Template Description</h3>
+            <p class="text-muted small">
+                Describe how you want your report to look. Be specific about sections, colors, and layout.
+            </p>
+            
+            <textarea class="form-control mb-3" id="template-prompt" rows="8" 
+                      placeholder="Example: Create a professional backup report with a blue header, metric cards showing backup success rates, and a table of recent backups...">{% if template %}{{ template.description }}{% else %}{{ default_description }}{% endif %}</textarea>
+            
+            <button class="btn btn-primary w-100" id="generate-button" onclick="generateTemplate()">
+                <i class="bi bi-magic"></i> Generate Template with AI
+            </button>
+            
+            <hr class="my-4">
+            
+            <h5>Advanced</h5>
+            <p class="text-muted small">Edit the generated HTML directly if needed.</p>
+            <textarea class="form-control" id="template-html" rows="10" 
+                      placeholder="Generated HTML will appear here...">{% if template %}{{ template.html_content }}{% endif %}</textarea>
+        </div>
+        
+        <div class="editor-panel">
+            <h3>Preview</h3>
+            <p class="text-muted small">
+                This shows how your template will look with sample data.
+            </p>
+            
+            <iframe id="template-preview" class="preview-frame"></iframe>
+        </div>
+    </div>
+    
+    <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-success" onclick="saveTemplate()">
+            <i class="bi bi-save"></i> Save Template
+        </button>
+        <a href="{{ url_for('templates_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i> Cancel
+        </a>
+    </div>
+</div>
+
+<script>
+let templateId = {% if template %}{{ template.template_id }}{% else %}null{% endif %};
+
+function getSelectedDataSources() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+async function generateTemplate() {
+    const description = document.getElementById('template-prompt').value;
+    const dataSources = getSelectedDataSources();
+    
+    if (!description.trim()) {
+        alert('Please enter a description');
+        return;
+    }
+    
+    await window.slideReports.templateManager.generateTemplate(description, dataSources);
+}
+
+async function saveTemplate() {
+    const name = document.getElementById('template-name').value;
+    const description = document.getElementById('template-description').value;
+    const htmlContent = document.getElementById('template-html').value;
+    
+    if (!name.trim()) {
+        alert('Please enter a template name');
+        return;
+    }
+    
+    if (!htmlContent.trim()) {
+        alert('Please generate or enter HTML content');
+        return;
+    }
+    
+    if (templateId) {
+        // Update existing template
+        try {
+            const response = await fetch(`/api/templates/${templateId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    description: description,
+                    html_content: htmlContent
+                })
+            });
+            
+            if (response.ok) {
+                window.slideReports.utils.showToast('Template updated successfully', 'success');
+                setTimeout(() => window.location.href = '/templates', 1000);
+            } else {
+                throw new Error('Update failed');
+            }
+        } catch (error) {
+            alert('Failed to update template: ' + error.message);
+        }
+    } else {
+        // Create new template
+        await window.slideReports.templateManager.saveTemplate(name, description, htmlContent);
+    }
+}
+
+// Update preview when HTML changes
+document.getElementById('template-html').addEventListener('input', function() {
+    const previewFrame = document.getElementById('template-preview');
+    const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+    previewDoc.open();
+    previewDoc.write(this.value);
+    previewDoc.close();
+});
+
+// Load initial preview if template exists
+{% if template %}
+window.addEventListener('DOMContentLoaded', () => {
+    const previewFrame = document.getElementById('template-preview');
+    const htmlContent = document.getElementById('template-html').value;
+    const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+    previewDoc.open();
+    previewDoc.write(htmlContent);
+    previewDoc.close();
+});
+{% endif %}
+</script>
+{% endblock %}
+

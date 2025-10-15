@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% set hide_nav = true %}
+
+{% block title %}Error - Slide Reports{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin-top: 100px;">
+    <div class="card">
+        <div class="card-body text-center">
+            <i class="bi bi-exclamation-triangle text-danger" style="font-size: 4rem;"></i>
+            
+            <h2 class="card-title mt-3">Oops! Something went wrong</h2>
+            <p class="card-text text-muted mb-4">
+                {{ error }}
+            </p>
+            
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                <i class="bi bi-house"></i> Go to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

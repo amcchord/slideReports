@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Slide Reports{% endblock %}
+
+{% block content %}
+<div style="margin-top: 2rem;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Dashboard</h1>
+        <div>
+            <button class="btn btn-primary" id="sync-button" onclick="startSync()" {% if is_syncing %}disabled{% endif %}>
+                {% if is_syncing %}
+                <span class="spinner"></span> Syncing...
+                {% else %}
+                <i class="bi bi-arrow-repeat"></i> Sync Now
+                {% endif %}
+            </button>
+        </div>
+    </div>
+    
+    {% if is_syncing %}
+    <div class="alert alert-info">
+        <strong>Sync in progress...</strong> The page will automatically refresh when complete. This may take a few minutes for large datasets.
+        <br><small>Syncing data from the last 90 days...</small>
+    </div>
+    <script>
+    // Auto-poll if sync is in progress on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        window.slideReports.syncManager.isSyncing = true;
+        window.slideReports.syncManager.pollSyncStatus();
+    });
+    </script>
+    {% endif %}
+    
+    <!-- Data Summary -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-label">Devices</div>
+            <div class="metric-value">{{ counts.devices }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Agents</div>
+            <div class="metric-value">{{ counts.agents }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Backups</div>
+            <div class="metric-value">{{ counts.backups }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Snapshots</div>
+            <div class="metric-value">{{ counts.snapshots }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Alerts</div>
+            <div class="metric-value">{{ counts.alerts }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Virtual Machines</div>
+            <div class="metric-value">{{ counts.virtual_machines }}</div>
+        </div>
+    </div>
+    
+    <!-- Sync Status -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-cloud-arrow-down"></i> Data Synchronization
+        </div>
+        <div class="card-body">
+            <p class="text-muted">
+                Timezone: <strong>{{ timezone }}</strong> 
+                <a href="#" onclick="changeTimezone(); return false;" class="ms-2">Change</a>
+                <br>
+                <small>Data sync limited to last 90 days</small>
+            </p>
+            
+            <div id="sync-progress" style="display: none;">
+                <h5>Syncing Data...</h5>
+                <div id="sync-progress-items"></div>
+            </div>
+            
+            <div id="sync-status-list">
+                {% for key, status in sync_status.items() %}
+                <div class="sync-item">
+                    <div class="sync-item-header">
+                        <span class="sync-item-name">{{ status.name }}</span>
+                        {% if status.status == 'completed' %}
+                        <span class="status-badge status-success">✓ Synced</span>
+                        {% elif status.status == 'error' %}
+                        <span class="status-badge status-danger">✗ Error</span>
+                        {% else %}
+                        <span class="status-badge">Not Synced</span>
+                        {% endif %}
+                    </div>
+                    <div class="sync-item-status">
+                        {{ status.total_items }} items in database
+                        {% if status.last_sync %}
+                        • Last synced: {{ status.last_sync }}
+                        {% endif %}
+                    </div>
+                    {% if status.error_message %}
+                    <div class="text-danger small">{{ status.error_message }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-lightning"></i> Quick Actions
+        </div>
+        <div class="card-body">
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{{ url_for('reports_builder') }}" class="btn btn-primary">
+                    <i class="bi bi-file-earmark-plus"></i> Build New Report
+                </a>
+                <a href="{{ url_for('templates_list') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-layout-text-window-reverse"></i> Manage Templates
+                </a>
+                <a href="{{ url_for('templates_new') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-magic"></i> Create Template with AI
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function startSync() {
+    window.slideReports.syncManager.startSync(null);
+}
+
+function changeTimezone() {
+    const newTz = prompt('Enter timezone (e.g., America/New_York, Europe/London):', '{{ timezone }}');
+    if (newTz) {
+        fetch('/api/preferences/timezone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timezone: newTz })
+        }).then(() => {
+            window.location.reload();
+        });
+    }
+}
+</script>
+{% endblock %}
+

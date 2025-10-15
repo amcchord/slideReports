@@ -3,3 +3,17 @@ python-dotenv==1.0.0
 gunicorn==21.2.0
 Werkzeug==3.0.1
 
+# Encryption
+cryptography==41.0.7
+
+# HTTP Requests
+requests==2.31.0
+
+# AI Generation
+anthropic>=0.69.0
+
+# Date/Time handling
+pytz==2024.1
+
+# Jinja2 (included with Flask but explicit for clarity)
+Jinja2==3.1.4

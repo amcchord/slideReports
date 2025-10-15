@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Build Report - Slide Reports{% endblock %}
+
+{% block content %}
+<div style="margin-top: 2rem;">
+    <h1>Build Report</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-gear"></i> Report Configuration
+        </div>
+        <div class="card-body">
+            <form id="report-form">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="template-select" class="form-label">Template</label>
+                        <select class="form-select" id="template-select" required>
+                            {% for template in templates %}
+                            <option value="{{ template.template_id }}" {% if template.is_default %}selected{% endif %}>
+                                {{ template.name }}{% if template.is_default %} (Default){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="start-date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start-date" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end-date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end-date" required>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Data Sources to Include</label>
+                    <div class="row">
+                        {% for source in data_sources %}
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       value="{{ source.key }}" id="source-{{ source.key }}" checked>
+                                <label class="form-check-label" for="source-{{ source.key }}">
+                                    {{ source.name }} ({{ source.count }})
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" id="preview-button" onclick="previewReport()">
+                        <i class="bi bi-eye"></i> Preview Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card" id="preview-card" style="display: none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-file-earmark-text"></i> Report Preview</span>
+            <button class="btn btn-sm btn-primary" onclick="printReport()">
+                <i class="bi bi-printer"></i> Print / Save as PDF
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <iframe id="report-preview" style="width: 100%; min-height: 800px; border: none;"></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set default date range (last 30 days)
+window.addEventListener('DOMContentLoaded', () => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    document.getElementById('end-date').valueAsDate = endDate;
+    document.getElementById('start-date').valueAsDate = startDate;
+    
+    // Pre-select template from URL if provided
+    const urlParams = new URLSearchParams(window.location.search);
+    const templateId = urlParams.get('template_id');
+    if (templateId) {
+        document.getElementById('template-select').value = templateId;
+    }
+});
+
+function getSelectedDataSources() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+async function previewReport() {
+    const templateId = document.getElementById('template-select').value;
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const dataSources = getSelectedDataSources();
+    
+    if (!templateId || !startDate || !endDate) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    if (dataSources.length === 0) {
+        alert('Please select at least one data source');
+        return;
+    }
+    
+    await window.slideReports.reportManager.previewReport(
+        templateId,
+        startDate,
+        endDate,
+        dataSources
+    );
+    
+    // Show preview card
+    document.getElementById('preview-card').style.display = 'block';
+    document.getElementById('preview-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function printReport() {
+    window.slideReports.reportManager.printReport();
+}
+</script>
+{% endblock %}
+

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% set hide_nav = true %}
+
+{% block title %}Setup - Slide Reports{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin-top: 100px;">
+    <div class="card">
+        <div class="card-body text-center">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Slide" style="max-width: 200px; margin-bottom: 2rem;">
+            
+            <h2 class="card-title">Welcome to Slide Reports</h2>
+            <p class="card-text text-muted mb-4">
+                Enter your Slide API key to get started. You can find your API key in the Slide Console.
+            </p>
+            
+            <form id="setup-form">
+                <div class="mb-3 text-start">
+                    <label for="api-key" class="form-label">API Key</label>
+                    <input type="text" class="form-control" id="api-key" placeholder="tk_..." required>
+                    <div class="form-text">Your API key starts with "tk_" and is used to access your Slide data.</div>
+                </div>
+                
+                <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                
+                <button type="submit" class="btn btn-primary btn-lg w-100" id="submit-button">
+                    <i class="bi bi-check-circle"></i> Continue
+                </button>
+            </form>
+            
+            <p class="text-muted mt-4 small">
+                <i class="bi bi-shield-check"></i> Your API key is encrypted and stored securely
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('setup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const apiKey = document.getElementById('api-key').value.trim();
+    const submitButton = document.getElementById('submit-button');
+    const errorMessage = document.getElementById('error-message');
+    
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner"></span> Verifying...';
+    errorMessage.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/setup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ api_key: apiKey })
+        });
+        
+        if (response.ok) {
+            window.location.href = '/dashboard';
+        } else {
+            const data = await response.json();
+            errorMessage.textContent = data.error || 'Setup failed';
+            errorMessage.style.display = 'block';
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="bi bi-check-circle"></i> Continue';
+        }
+    } catch (error) {
+        errorMessage.textContent = 'Connection error. Please try again.';
+        errorMessage.style.display = 'block';
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="bi bi-check-circle"></i> Continue';
+    }
+});
+</script>
+{% endblock %}
+

@@ -39,3 +39,7 @@ Thumbs.db
 # Logs
 *.log
 
+# Database files
+*.db
+data/
+
