@@ -8,7 +8,7 @@
     <p class="lead">Complete list of all variables available in report templates</p>
     
     <!-- Hero Section with Quick Actions -->
-    <div class="card mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="card mb-4" style="background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); color: white;">
         <div class="card-body p-4">
             <h3 class="mb-3"><i class="bi bi-lightbulb"></i> Using Template Variables</h3>
             <p class="mb-3">
@@ -495,6 +495,170 @@
 {{ '{% for device in device_storage_growth %}' }}
   {{ '<p>{{ device.device_name }}: {{ device.growth_formatted }}</p>' }}
 {{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
+    <!-- Raw Data Arrays -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-database"></i> Raw Data Arrays (Advanced)</h3>
+        </div>
+        <div class="card-body">
+            <p class="alert alert-warning">
+                <strong>⚠️ Important:</strong> These are raw database records. Fields may be <code>None/null</code>. 
+                <strong>All datetime fields are ISO format STRINGS</strong>, not datetime objects. 
+                Always check for null values and don't use datetime operations like <code>.days</code> or <code>.strftime()</code>.
+            </p>
+            <p>These arrays provide access to raw database records for advanced template customization. 
+               They are filtered by <code>client_id</code> if specified, and limited to the reporting date range where applicable.</p>
+            
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Array</th>
+                        <th style="width: 75%;">Available Fields</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ devices }}' }}</code></td>
+                        <td><code>device_id</code>, <code>display_name</code>, <code>hostname</code>, <code>last_seen_at</code>, <code>booted_at</code>, <code>ip_addresses</code>, <code>os</code>, <code>os_version</code>, <code>arch</code>, <code>client_id</code>, <code>storage_used_bytes</code>, <code>storage_total_bytes</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ agents }}' }}</code></td>
+                        <td><code>agent_id</code>, <code>device_id</code>, <code>display_name</code>, <code>hostname</code>, <code>last_seen_at</code>, <code>booted_at</code>, <code>ip_addresses</code>, <code>os</code>, <code>os_version</code>, <code>arch</code>, <code>client_id</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ backups }}' }}</code></td>
+                        <td><code>backup_id</code>, <code>agent_id</code>, <code>started_at</code> (STRING), <code>ended_at</code> (STRING), <code>status</code>, <code>error_code</code>, <code>error_message</code>, <code>snapshot_id</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ snapshots }}' }}</code></td>
+                        <td><code>snapshot_id</code>, <code>agent_id</code>, <code>backup_started_at</code> (STRING), <code>backup_ended_at</code> (STRING), <code>locations</code>, <code>deleted</code>, <code>deletions</code>, <code>verify_boot_screenshot_url</code>, <code>exists_local</code>, <code>exists_cloud</code>, <code>exists_deleted</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ alerts }}' }}</code></td>
+                        <td><code>alert_id</code>, <code>alert_type</code>, <code>alert_fields</code>, <code>created_at</code> (STRING), <code>resolved</code> (0/1), <code>device_id</code>, <code>agent_id</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ virtual_machines }}' }}</code></td>
+                        <td><code>virt_id</code>, <code>device_id</code>, <code>agent_id</code>, <code>snapshot_id</code>, <code>state</code>, <code>created_at</code> (STRING), <code>expires_at</code> (STRING), <code>cpu_count</code>, <code>memory_in_mb</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ audits }}' }}</code></td>
+                        <td><code>audit_id</code>, <code>audit_time</code> (STRING), <code>account_id</code>, <code>client_id</code>, <code>user_id</code>, <code>action</code>, <code>resource_type</code>, <code>resource_id</code>, <code>note</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ clients }}' }}</code></td>
+                        <td><code>client_id</code>, <code>name</code>, <code>comments</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ file_restores }}' }}</code></td>
+                        <td><code>file_restore_id</code>, <code>device_id</code>, <code>agent_id</code>, <code>snapshot_id</code>, <code>created_at</code> (STRING), <code>expires_at</code> (STRING)</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '{% for device in devices %}' }}
+  {{ '<h4>{{ device.display_name or device.hostname }}</h4>' }}
+  {{ '{% if device.storage_used_bytes and device.storage_total_bytes %}' }}
+    {{ '<p>Storage: {{ (device.storage_used_bytes / 1024**3)|round(1) }} GB / {{ (device.storage_total_bytes / 1024**3)|round(1) }} GB</p>' }}
+  {{ '{% else %}' }}
+    {{ '<p>Storage: N/A</p>' }}
+  {{ '{% endif %}' }}
+{{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
+    <!-- Jinja2 Filters & Functions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-funnel"></i> Jinja2 Filters & Functions</h3>
+        </div>
+        <div class="card-body">
+            <p>Jinja2 provides powerful filters and operations for template expressions:</p>
+            
+            <h5 class="mt-4">Common Filters</h5>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">Filter</th>
+                        <th style="width: 70%;">Usage Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>|length</code></td>
+                        <td><code>{{ '{{ items|length }}' }}</code> - Get length of list or string</td>
+                    </tr>
+                    <tr>
+                        <td><code>|default</code></td>
+                        <td><code>{{ '{{ variable|default("N/A") }}' }}</code> - Provide default if None/missing</td>
+                    </tr>
+                    <tr>
+                        <td><code>|round</code></td>
+                        <td><code>{{ '{{ 3.14159|round(2) }}' }}</code> - Round to 2 decimal places (outputs 3.14)</td>
+                    </tr>
+                    <tr>
+                        <td><code>|upper</code></td>
+                        <td><code>{{ '{{ name|upper }}' }}</code> - Convert to uppercase</td>
+                    </tr>
+                    <tr>
+                        <td><code>|lower</code></td>
+                        <td><code>{{ '{{ name|lower }}' }}</code> - Convert to lowercase</td>
+                    </tr>
+                    <tr>
+                        <td><code>|title</code></td>
+                        <td><code>{{ '{{ name|title }}' }}</code> - Title case (capitalize each word)</td>
+                    </tr>
+                    <tr>
+                        <td><code>|join</code></td>
+                        <td><code>{{ '{{ items|join(", ") }}' }}</code> - Join list with separator</td>
+                    </tr>
+                    <tr>
+                        <td><code>|replace</code></td>
+                        <td><code>{{ '{{ text|replace("old", "new") }}' }}</code> - Replace substring</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h5 class="mt-4">Math Operations</h5>
+            <p>You can use standard math operators in expressions:</p>
+            <pre><code>{{ '{{ (storage_bytes / 1024**3)|round(2) }}' }} GB   {# Division and exponent #}
+{{ '{{ count + 5 }}' }}                         {# Addition #}
+{{ '{{ total - failed }}' }}                    {# Subtraction #}
+{{ '{{ rate * 100 }}' }}                        {# Multiplication #}
+{{ '{{ value // 2 }}' }}                        {# Integer division #}
+{{ '{{ value % 10 }}' }}                        {# Modulo #}</code></pre>
+            
+            <h5 class="mt-4">List Slicing</h5>
+            <p>Use Python-style slicing to limit lists:</p>
+            <pre><code>{{ '{% for item in items[:10] %}' }}     {# First 10 items #}
+{{ '{% for item in items[5:] %}' }}      {# All items starting from index 5 #}
+{{ '{% for item in items[::2] %}' }}     {# Every other item #}</code></pre>
+            
+            <h5 class="mt-4">Conditional Operations</h5>
+            <p>Use comparisons and logic operators:</p>
+            <pre><code>{{ '{% if count > 10 %}' }}              {# Comparison operators: >, <, >=, <=, ==, != #}
+{{ '{% if a and b %}' }}                 {# Logical operators: and, or, not #}
+{{ '{% if item in list %}' }}            {# Membership test #}
+{{ '{{ "yes" if condition else "no" }}' }} {# Inline if/else (ternary) #}
+{{ '{{ variable or "default" }}' }}      {# Default value with 'or' #}</code></pre>
+            
+            <h5 class="mt-4">String Concatenation</h5>
+            <p>Use the <code>~</code> operator to concatenate strings:</p>
+            <pre><code>{{ '{{ first_name ~ " " ~ last_name }}' }}
+{{ '{{ device.hostname ~ " (" ~ device.os ~ ")" }}' }}</code></pre>
+            
+            <div class="alert alert-info mt-4">
+                <strong>💡 Tip:</strong> Always check for None/null values before using operations:
+                <pre class="mb-0"><code>{{ '{% if device.storage_used_bytes %}' }}
+  {{ '{{ (device.storage_used_bytes / 1024**3)|round(1) }} GB' }}
+{{ '{% else %}' }}
+  N/A
+{{ '{% endif %}' }}</code></pre>
+            </div>
         </div>
     </div>
 

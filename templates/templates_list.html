@@ -43,10 +43,16 @@
                         <a href="{{ url_for('templates_view', template_id=template.template_id) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-eye"></i> View
                         </a>
+                        <button onclick="cloneTemplate({{ template.template_id }})" class="btn btn-sm btn-primary">
+                            <i class="bi bi-files"></i> Clone
+                        </button>
                         {% else %}
                         <a href="{{ url_for('templates_view', template_id=template.template_id) }}" class="btn btn-sm btn-primary">
                             <i class="bi bi-pencil"></i> Edit
                         </a>
+                        <button onclick="cloneTemplate({{ template.template_id }})" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-files"></i> Clone
+                        </button>
                         {% endif %}
                         <button onclick="useTemplate({{ template.template_id }})" class="btn btn-sm btn-success">
                             <i class="bi bi-file-earmark-text"></i> Use in Report
@@ -76,6 +82,25 @@
 <script>
 function useTemplate(templateId) {
     window.location.href = `/reports/builder?template_id=${templateId}`;
+}
+
+async function cloneTemplate(templateId) {
+    try {
+        const response = await fetch(`/api/templates/${templateId}/clone`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            window.slideReports.utils.showToast(`Template cloned as "${data.name}"`, 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            const data = await response.json();
+            alert('Failed to clone template: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error cloning template: ' + error.message);
+    }
 }
 
 async function deleteTemplate(templateId) {

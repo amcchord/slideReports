@@ -143,6 +143,11 @@ def api_setup():
     # Encrypt and set cookie
     encrypted_key = encryption.encrypt(api_key)
     
+    # Store encrypted API key in database for auto-sync
+    api_key_hash = Encryption.hash_api_key(api_key)
+    db = Database(get_database_path(api_key_hash))
+    db.store_encrypted_api_key(api_key_hash, encrypted_key)
+    
     response = jsonify({'success': True})
     response.set_cookie(
         'slide_api_key',
@@ -227,6 +232,9 @@ def api_sync_status(api_key, api_key_hash):
     sync_engine = SyncEngine(client, db)
     db_status = sync_engine.get_sync_status()
     
+    # Get current counts
+    counts = db.get_data_source_counts()
+    
     # If syncing, merge with real-time progress
     if bg_state.get('status') == 'syncing':
         for source, progress_data in bg_state.get('progress', {}).items():
@@ -239,7 +247,8 @@ def api_sync_status(api_key, api_key_hash):
     response = {
         'sources': db_status,
         'sync_state': bg_state.get('status', 'idle'),
-        'current_source': bg_state.get('current_source')
+        'current_source': bg_state.get('current_source'),
+        'counts': counts
     }
     
     return jsonify(response)
@@ -308,15 +317,25 @@ def templates_new(api_key, api_key_hash):
                          data_sources=data_sources)
 
 
-@app.route('/templates/<int:template_id>')
+@app.route('/templates/<template_id>')
 @require_api_key
 def templates_view(api_key, api_key_hash, template_id):
     """View/edit template"""
+    # Convert to int (Flask's <int:> doesn't support negative numbers)
+    try:
+        template_id = int(template_id)
+    except ValueError:
+        return "Invalid template ID", 400
+    
     tm = TemplateManager(api_key_hash)
     template = tm.get_template(template_id)
     
     if not template:
         return "Template not found", 404
+    
+    # Ensure is_builtin flag is set (safety check)
+    if 'is_builtin' not in template:
+        template['is_builtin'] = template_id < 0
     
     # Get data sources
     db = Database(get_database_path(api_key_hash))
@@ -353,10 +372,16 @@ def api_templates_create(api_key, api_key_hash):
     return jsonify({'template_id': template_id, 'success': True}), 201
 
 
-@app.route('/api/templates/<int:template_id>', methods=['PATCH'])
+@app.route('/api/templates/<template_id>', methods=['PATCH'])
 @require_api_key
 def api_templates_update(api_key, api_key_hash, template_id):
     """Update template"""
+    # Convert to int (Flask's <int:> doesn't support negative numbers)
+    try:
+        template_id = int(template_id)
+    except ValueError:
+        return jsonify({'error': 'Invalid template ID'}), 400
+    
     # Prevent editing built-in templates
     if template_id < 0:
         return jsonify({'error': 'Cannot edit built-in templates'}), 400
@@ -374,10 +399,16 @@ def api_templates_update(api_key, api_key_hash, template_id):
     return jsonify({'success': True})
 
 
-@app.route('/api/templates/<int:template_id>', methods=['DELETE'])
+@app.route('/api/templates/<template_id>', methods=['DELETE'])
 @require_api_key
 def api_templates_delete(api_key, api_key_hash, template_id):
     """Delete template"""
+    # Convert to int (Flask's <int:> doesn't support negative numbers)
+    try:
+        template_id = int(template_id)
+    except ValueError:
+        return jsonify({'error': 'Invalid template ID'}), 400
+    
     # Prevent deleting built-in templates
     if template_id < 0:
         return jsonify({'error': 'Cannot delete built-in templates'}), 400
@@ -386,6 +417,40 @@ def api_templates_delete(api_key, api_key_hash, template_id):
     tm.delete_template(template_id)
     
     return '', 204
+
+
+@app.route('/api/templates/<template_id>/clone', methods=['POST'])
+@require_api_key
+def api_templates_clone(api_key, api_key_hash, template_id):
+    """Clone a template (built-in or user template)"""
+    # Convert to int (Flask's <int:> doesn't support negative numbers)
+    try:
+        template_id = int(template_id)
+    except ValueError:
+        return jsonify({'error': 'Invalid template ID'}), 400
+    
+    tm = TemplateManager(api_key_hash)
+    source_template = tm.get_template(template_id)
+    
+    if not source_template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    # Create new name for cloned template
+    original_name = source_template['name']
+    clone_name = f"{original_name} (Copy)"
+    
+    # Create the cloned template
+    new_template_id = tm.create_template(
+        name=clone_name,
+        description=source_template.get('description', ''),
+        html_content=source_template['html_content']
+    )
+    
+    return jsonify({
+        'success': True,
+        'template_id': new_template_id,
+        'name': clone_name
+    })
 
 
 @app.route('/api/templates/generate', methods=['POST'])
@@ -764,7 +829,196 @@ def api_template_schema(api_key, api_key_hash):
                     "growth_formatted": "Formatted values",
                     "is_growth": "Boolean"
                 }
+            },
+            "devices": {
+                "type": "array",
+                "description": "Raw list of devices (database records) - filtered by client_id if specified",
+                "warning": "Fields may be None/null. Always check before using! Datetime fields are ISO strings.",
+                "item_type": "object",
+                "properties": {
+                    "device_id": "string - Unique device identifier",
+                    "display_name": "string|None - Human-readable device name",
+                    "hostname": "string|None - Device hostname",
+                    "last_seen_at": "string (ISO format)|None - Last contact time (STRING, not datetime!)",
+                    "booted_at": "string (ISO format)|None - Boot time (STRING)",
+                    "ip_addresses": "string|None - JSON string of IP addresses",
+                    "os": "string|None - Operating system",
+                    "os_version": "string|None - OS version",
+                    "arch": "string|None - Architecture (x86_64, arm64, etc.)",
+                    "client_id": "string|None - Associated client ID",
+                    "storage_used_bytes": "integer|None - Used storage in bytes",
+                    "storage_total_bytes": "integer|None - Total storage in bytes"
+                }
+            },
+            "agents": {
+                "type": "array",
+                "description": "Raw list of agents (database records) - filtered by client_id if specified",
+                "warning": "Fields may be None/null. Always check before using! Datetime fields are ISO strings.",
+                "item_type": "object",
+                "properties": {
+                    "agent_id": "string - Unique agent identifier",
+                    "device_id": "string|None - Associated device ID",
+                    "display_name": "string|None - Human-readable agent name",
+                    "hostname": "string|None - Agent hostname",
+                    "last_seen_at": "string (ISO format)|None - Last contact time (STRING)",
+                    "booted_at": "string (ISO format)|None - Boot time (STRING)",
+                    "ip_addresses": "string|None - JSON string of IP addresses",
+                    "os": "string|None - Operating system",
+                    "os_version": "string|None - OS version",
+                    "arch": "string|None - Architecture",
+                    "client_id": "string|None - Associated client ID"
+                }
+            },
+            "backups": {
+                "type": "array",
+                "description": "Raw list of backups in the reporting period - filtered by client_id if specified",
+                "warning": "Fields may be None/null. Always check before using! Datetime fields are ISO strings.",
+                "item_type": "object",
+                "properties": {
+                    "backup_id": "string - Unique backup identifier",
+                    "agent_id": "string - Associated agent ID",
+                    "started_at": "string (ISO format)|None - Backup start time (STRING, not datetime!)",
+                    "ended_at": "string (ISO format)|None - Backup end time (STRING)",
+                    "status": "string - Status: 'succeeded', 'failed', 'running'",
+                    "error_code": "integer|None - Error code if failed",
+                    "error_message": "string|None - Error message if failed",
+                    "snapshot_id": "string|None - Associated snapshot ID"
+                }
+            },
+            "snapshots": {
+                "type": "array",
+                "description": "Raw list of snapshots in the reporting period - filtered by client_id if specified",
+                "warning": "Fields may be None/null. Always check before using! Datetime fields are ISO strings.",
+                "item_type": "object",
+                "properties": {
+                    "snapshot_id": "string - Unique snapshot identifier",
+                    "agent_id": "string - Associated agent ID",
+                    "backup_started_at": "string (ISO format)|None - Backup start time (STRING)",
+                    "backup_ended_at": "string (ISO format)|None - Backup end time (STRING)",
+                    "locations": "string|None - JSON string of storage locations",
+                    "deleted": "string|None - Deletion status",
+                    "deletions": "string|None - JSON string of deletion records",
+                    "verify_boot_screenshot_url": "string|None - URL to boot verification screenshot",
+                    "exists_local": "boolean - Exists in local storage",
+                    "exists_cloud": "boolean - Exists in cloud storage",
+                    "exists_deleted": "boolean - Has been deleted",
+                    "exists_deleted_retention": "boolean - Deleted by retention policy",
+                    "exists_deleted_manual": "boolean - Manually deleted"
+                }
+            },
+            "alerts": {
+                "type": "array",
+                "description": "Raw list of alerts in the reporting period - filtered by client_id if specified",
+                "warning": "Fields may be None/null. Always check before using! Datetime fields are ISO strings.",
+                "item_type": "object",
+                "properties": {
+                    "alert_id": "string - Unique alert identifier",
+                    "alert_type": "string - Alert type/category",
+                    "alert_fields": "string|None - JSON string of alert fields",
+                    "created_at": "string (ISO format)|None - Alert creation time (STRING)",
+                    "resolved": "integer - 0 for unresolved, 1 for resolved (use as boolean)",
+                    "device_id": "string|None - Associated device ID",
+                    "agent_id": "string|None - Associated agent ID"
+                }
+            },
+            "virtual_machines": {
+                "type": "array",
+                "description": "Raw list of VMs (database records) - filtered by client_id if specified",
+                "warning": "Fields may be None/null. Always check before using! Datetime fields are ISO strings.",
+                "item_type": "object",
+                "properties": {
+                    "virt_id": "string - Unique VM identifier",
+                    "device_id": "string|None - Associated device ID",
+                    "agent_id": "string|None - Associated agent ID",
+                    "snapshot_id": "string|None - Associated snapshot ID",
+                    "state": "string - VM state: 'running', 'stopped', etc.",
+                    "created_at": "string (ISO format)|None - VM creation time (STRING)",
+                    "expires_at": "string (ISO format)|None - VM expiration time (STRING)",
+                    "cpu_count": "integer|None - Number of CPUs",
+                    "memory_in_mb": "integer|None - Memory in megabytes"
+                }
+            },
+            "file_restores": {
+                "type": "array",
+                "description": "Raw list of file restores (database records) - filtered by client_id if specified",
+                "warning": "Fields may be None/null. Always check before using! Datetime fields are ISO strings.",
+                "item_type": "object",
+                "properties": {
+                    "file_restore_id": "string - Unique file restore identifier",
+                    "device_id": "string|None - Associated device ID",
+                    "agent_id": "string|None - Associated agent ID",
+                    "snapshot_id": "string|None - Associated snapshot ID",
+                    "created_at": "string (ISO format)|None - Restore creation time (STRING)",
+                    "expires_at": "string (ISO format)|None - Restore expiration time (STRING)"
+                }
+            },
+            "clients": {
+                "type": "array",
+                "description": "Raw list of clients (database records) - only the filtered client if client_id specified",
+                "warning": "Fields may be None/null. Always check before using!",
+                "item_type": "object",
+                "properties": {
+                    "client_id": "string - Unique client identifier",
+                    "name": "string|None - Client name",
+                    "comments": "string|None - Client comments/notes"
+                }
+            },
+            "audits": {
+                "type": "array",
+                "description": "Raw list of audit log entries in the reporting period (max 100) - filtered by client_id if specified",
+                "warning": "Fields may be None/null. Always check before using! Datetime fields are ISO strings.",
+                "item_type": "object",
+                "properties": {
+                    "audit_id": "string - Unique audit entry identifier",
+                    "audit_time": "string (ISO format) - Audit timestamp (STRING)",
+                    "account_id": "string|None - Associated account ID",
+                    "client_id": "string|None - Associated client ID",
+                    "user_id": "string|None - Associated user ID",
+                    "action": "string - Action performed (create, delete, update, etc.)",
+                    "resource_type": "string|None - Type of resource affected",
+                    "resource_id": "string|None - ID of resource affected",
+                    "note": "string|None - Additional notes"
+                }
             }
+        },
+        "important_rules": {
+            "datetime_handling": "All datetime fields are ISO format STRINGS, not datetime objects. You CANNOT use .days, .seconds, .strftime() directly! Use string formatting or check if None first.",
+            "null_safety": "ALWAYS check if a value exists before using it. Use 'if variable' or 'variable or default' patterns.",
+            "safe_filters": "Use safe filters: |length (not len()), |default('N/A'), variable or 'N/A'",
+            "avoid_python_operations": "Do NOT use Python datetime operations like (datetime1 - datetime2).days - this will fail!",
+            "avoid_complex_lookups": "Avoid selectattr with 'equalto' - it may fail. Use simple loops instead.",
+            "safe_example": "{% if device.storage_used_bytes %}{{ (device.storage_used_bytes / 1024**3)|round(1) }} GB{% else %}N/A{% endif %}"
+        },
+        "jinja2_filters": {
+            "description": "Available Jinja2 filters for template expressions",
+            "filters": {
+                "length": "Get length of list/string: {{ items|length }} or {{ name|length }}",
+                "default": "Provide default value if None/missing: {{ var|default('N/A') }}",
+                "round": "Round numbers: {{ 3.14159|round(2) }} outputs 3.14",
+                "upper": "Uppercase string: {{ name|upper }}",
+                "lower": "Lowercase string: {{ name|lower }}",
+                "title": "Title case: {{ name|title }}",
+                "capitalize": "Capitalize first letter: {{ word|capitalize }}",
+                "join": "Join list with separator: {{ items|join(', ') }}",
+                "replace": "Replace substring: {{ text|replace('old', 'new') }}",
+                "trim": "Remove whitespace: {{ text|trim }}",
+                "truncate": "Truncate to length: {{ text|truncate(50) }}",
+                "abs": "Absolute value: {{ number|abs }}",
+                "int": "Convert to integer: {{ value|int }}",
+                "float": "Convert to float: {{ value|float }}",
+                "string": "Convert to string: {{ value|string }}"
+            },
+            "slicing": "Use Python slicing syntax: items[:10] for first 10, items[5:] for all after 5, items[::2] for every other"
+        },
+        "safe_operations": {
+            "description": "Safe operations available in Jinja2 templates",
+            "math": "Use +, -, *, /, //, %, ** in expressions: {{ (value / 1024)|round(2) }}",
+            "comparisons": "Use ==, !=, <, >, <=, >= in conditionals: {% if count > 10 %}",
+            "logic": "Use 'and', 'or', 'not' in conditionals: {% if a and b %}",
+            "membership": "'in' operator for lists/strings: {% if 'text' in string %} or {% if item in list %}",
+            "string_concat": "Use ~ operator to concatenate: {{ first_name ~ ' ' ~ last_name }}",
+            "ternary": "Inline if/else: {{ 'yes' if condition else 'no' }}",
+            "none_coalescing": "Use 'or' for default values: {{ variable or 'default' }}"
         },
         "flags": {
             "show_backup_stats": "True if backups data source selected",
@@ -804,14 +1058,24 @@ def logout():
 @app.route('/api/preferences/auto-sync', methods=['POST'])
 @require_api_key
 def api_set_auto_sync(api_key, api_key_hash):
-    """Toggle auto-sync preference"""
+    """Toggle auto-sync preference and/or update frequency"""
     data = request.get_json()
-    enabled = data.get('enabled', True)
+    enabled = data.get('enabled')
+    frequency_hours = data.get('frequency_hours')
     
     db = Database(get_database_path(api_key_hash))
-    db.set_preference('auto_sync_enabled', 'true' if enabled else 'false')
     
-    return jsonify({'success': True, 'enabled': enabled})
+    if enabled is not None:
+        db.set_preference('auto_sync_enabled', 'true' if enabled else 'false')
+    
+    if frequency_hours is not None:
+        db.set_preference('auto_sync_frequency_hours', str(frequency_hours))
+    
+    return jsonify({
+        'success': True,
+        'enabled': enabled if enabled is not None else db.get_preference('auto_sync_enabled', 'true').lower() == 'true',
+        'frequency_hours': frequency_hours if frequency_hours is not None else int(db.get_preference('auto_sync_frequency_hours', '1'))
+    })
 
 
 @app.route('/api/sync/next')

@@ -2,6 +2,10 @@
 
 {% block title %}{% if template %}Edit{% else %}New{% endif %} Template - Slide Reports{% endblock %}
 
+{% block extra_head %}
+<!-- Monaco Editor will be loaded via script tag with onload handler -->
+{% endblock %}
+
 {% block content %}
 <div style="margin-top: 2rem;">
     {% if template and template.is_builtin %}
@@ -58,6 +62,10 @@
             <textarea class="form-control mb-3" id="template-prompt" rows="6" 
                       placeholder="Example: Create a professional backup report with a blue header, metric cards showing backup success rates, and a table of recent backups...">{% if template %}{{ template.description }}{% else %}{{ default_description }}{% endif %}</textarea>
             
+            <div class="alert alert-info mb-3" style="font-size: 0.875rem;">
+                <i class="bi bi-info-circle"></i> <strong>Note:</strong> AI template generation typically takes 1-5 minutes. Please be patient while the template is being created.
+            </div>
+            
             <button class="btn btn-primary w-100" id="generate-button" onclick="generateTemplate()">
                 <i class="bi bi-magic"></i> Generate Template with AI
             </button>
@@ -71,7 +79,8 @@
                     <i class="bi bi-book"></i> View all available template variables
                 </a>
             </p>
-            <textarea class="form-control" id="template-html" rows="12" 
+            <div id="template-html-editor"></div>
+            <textarea class="form-control" id="template-html" rows="12" style="display: none;" 
                       placeholder="Paste your HTML here or use AI generation above...">{% if template %}{{ template.html_content }}{% endif %}</textarea>
         </div>
         
@@ -86,9 +95,15 @@
     </div>
     
     <div class="mt-4 d-flex gap-2">
+        {% if template and template.is_builtin %}
+        <button class="btn btn-primary" onclick="cloneAndEdit()">
+            <i class="bi bi-files"></i> Clone & Edit
+        </button>
+        {% else %}
         <button class="btn btn-success" onclick="saveTemplate()">
             <i class="bi bi-save"></i> Save Template
         </button>
+        {% endif %}
         <a href="{{ url_for('templates_list') }}" class="btn btn-outline-secondary">
             <i class="bi bi-x-circle"></i> Cancel
         </a>
@@ -97,10 +112,151 @@
 
 <script>
 let templateId = {% if template %}{{ template.template_id }}{% else %}null{% endif %};
+let monacoEditor = null;
+
+// Initialize Monaco Editor by dynamically loading the loader script
+function initMonacoEditor() {
+    console.log('Starting Monaco Editor initialization...');
+    
+    const initialValue = document.getElementById('template-html').value || '';
+    const isReadOnly = {% if template and template.is_builtin %}true{% else %}false{% endif %};
+    const editorContainer = document.getElementById('template-html-editor');
+    
+    if (!editorContainer) {
+        console.error('Monaco editor container not found');
+        document.getElementById('template-html').style.display = 'block';
+        return;
+    }
+    
+    // Load Monaco loader script dynamically
+    const loaderScript = document.createElement('script');
+    loaderScript.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js';
+    loaderScript.async = true;
+    
+    loaderScript.onload = function() {
+        console.log('Monaco loader loaded successfully');
+        
+        // Now require is available
+        if (typeof require === 'undefined') {
+            console.error('require still not defined after loading loader.js');
+            document.getElementById('template-html').style.display = 'block';
+            return;
+        }
+        
+        require.config({ 
+            paths: { 
+                vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' 
+            }
+        });
+        
+        require(['vs/editor/editor.main'], function() {
+            try {
+                monacoEditor = monaco.editor.create(editorContainer, {
+                    value: initialValue,
+                    language: 'html',
+                    theme: 'vs',
+                    automaticLayout: true,
+                    minimap: { enabled: true },
+                    readOnly: isReadOnly,
+                    wordWrap: 'on',
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    formatOnPaste: true,
+                    formatOnType: true
+                });
+                
+                console.log('Monaco Editor initialized successfully', {
+                    hasInitialValue: !!initialValue,
+                    valueLength: initialValue.length
+                });
+                
+                // Sync Monaco editor changes to hidden textarea
+                monacoEditor.onDidChangeModelContent(function() {
+                    const value = monacoEditor.getValue();
+                    document.getElementById('template-html').value = value;
+                    
+                    // Update preview
+                    updatePreview(value);
+                });
+                
+                // Initial preview
+                if (initialValue) {
+                    updatePreview(initialValue);
+                }
+                
+                // Make Monaco globally accessible for other scripts
+                window.monacoEditor = monacoEditor;
+                window.monacoEditorInstance = monacoEditor;
+                
+            } catch (error) {
+                console.error('Failed to initialize Monaco Editor:', error);
+                // Fallback: show the textarea
+                document.getElementById('template-html').style.display = 'block';
+            }
+        }, function(err) {
+            console.error('Failed to load Monaco Editor modules:', err);
+            // Fallback: show the textarea
+            document.getElementById('template-html').style.display = 'block';
+        });
+    };
+    
+    loaderScript.onerror = function() {
+        console.error('Failed to load Monaco loader script');
+        // Fallback: show the textarea
+        document.getElementById('template-html').style.display = 'block';
+    };
+    
+    document.head.appendChild(loaderScript);
+}
+
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMonacoEditor);
+} else {
+    // DOM already loaded
+    initMonacoEditor();
+}
+
+function updatePreview(htmlContent) {
+    const previewFrame = document.getElementById('template-preview');
+    if (previewFrame) {
+        const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+        previewDoc.open();
+        previewDoc.write(htmlContent);
+        previewDoc.close();
+    }
+}
 
 function getSelectedDataSources() {
     const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
     return Array.from(checkboxes).map(cb => cb.value);
+}
+
+async function cloneAndEdit() {
+    if (!templateId) {
+        alert('No template to clone');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/templates/${templateId}/clone`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            window.slideReports.utils.showToast(`Template cloned as "${data.name}"`, 'success');
+            setTimeout(() => {
+                window.location.href = `/templates/${data.template_id}`;
+            }, 1000);
+        } else {
+            const data = await response.json();
+            alert('Failed to clone template: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error cloning template: ' + error.message);
+    }
 }
 
 async function generateTemplate() {
@@ -118,7 +274,14 @@ async function generateTemplate() {
 async function saveTemplate() {
     const name = document.getElementById('template-name').value;
     const description = document.getElementById('template-description').value;
-    const htmlContent = document.getElementById('template-html').value;
+    
+    // Get HTML content from Monaco editor if available, otherwise from textarea
+    let htmlContent;
+    if (monacoEditor) {
+        htmlContent = monacoEditor.getValue();
+    } else {
+        htmlContent = document.getElementById('template-html').value;
+    }
     
     if (!name.trim()) {
         alert('Please enter a template name');
@@ -157,27 +320,6 @@ async function saveTemplate() {
         await window.slideReports.templateManager.saveTemplate(name, description, htmlContent);
     }
 }
-
-// Update preview when HTML changes
-document.getElementById('template-html').addEventListener('input', function() {
-    const previewFrame = document.getElementById('template-preview');
-    const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
-    previewDoc.open();
-    previewDoc.write(this.value);
-    previewDoc.close();
-});
-
-// Load initial preview if template exists
-{% if template %}
-window.addEventListener('DOMContentLoaded', () => {
-    const previewFrame = document.getElementById('template-preview');
-    const htmlContent = document.getElementById('template-html').value;
-    const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
-    previewDoc.open();
-    previewDoc.write(htmlContent);
-    previewDoc.close();
-});
-{% endif %}
 </script>
 {% endblock %}
 

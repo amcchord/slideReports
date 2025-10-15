@@ -56,6 +56,44 @@
         </div>
     </div>
     
+    <!-- Auto-Sync Settings -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-arrow-repeat"></i> Automatic Sync
+            </div>
+            <div class="form-check form-switch" style="margin: 0;">
+                <input class="form-check-input" type="checkbox" id="auto-sync-toggle" style="cursor: pointer;" checked>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                Automatically sync your Slide data every hour in the background. You can also manually sync anytime using the "Sync Now" button above.
+            </p>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="sync-frequency" class="form-label small">Sync Frequency</label>
+                    <select class="form-select form-select-sm" id="sync-frequency">
+                        <option value="1" selected>Every hour</option>
+                        <option value="2">Every 2 hours</option>
+                        <option value="4">Every 4 hours</option>
+                        <option value="6">Every 6 hours</option>
+                        <option value="12">Every 12 hours</option>
+                        <option value="24">Once per day</option>
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small">Status</label>
+                    <div id="auto-sync-status" class="small">
+                        <span class="status-badge status-success">Enabled</span>
+                        <span id="next-sync-time" class="text-muted ms-2">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Unified Data Summary & Synchronization -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -89,7 +127,7 @@
                 <tbody>
                     <tr>
                         <td><i class="bi bi-hdd"></i> Devices</td>
-                        <td style="text-align: right; font-weight: 600;">{{ counts.devices }}</td>
+                        <td style="text-align: right; font-weight: 600;" id="count-devices">{{ counts.devices }}</td>
                         <td>
                             {% if sync_status.devices %}
                             <span class="text-muted small">{{ sync_status.devices.last_sync_friendly }}</span>
@@ -112,7 +150,7 @@
                     </tr>
                     <tr>
                         <td><i class="bi bi-server"></i> Agents</td>
-                        <td style="text-align: right; font-weight: 600;">{{ counts.agents }}</td>
+                        <td style="text-align: right; font-weight: 600;" id="count-agents">{{ counts.agents }}</td>
                         <td>
                             {% if sync_status.agents %}
                             <span class="text-muted small">{{ sync_status.agents.last_sync_friendly }}</span>
@@ -135,7 +173,7 @@
                     </tr>
                     <tr>
                         <td><i class="bi bi-arrow-repeat"></i> Backups</td>
-                        <td style="text-align: right; font-weight: 600;">{{ counts.backups }}</td>
+                        <td style="text-align: right; font-weight: 600;" id="count-backups">{{ counts.backups }}</td>
                         <td>
                             {% if sync_status.backups %}
                             <span class="text-muted small">{{ sync_status.backups.last_sync_friendly }}</span>
@@ -158,7 +196,7 @@
                     </tr>
                     <tr>
                         <td><i class="bi bi-camera"></i> Snapshots</td>
-                        <td style="text-align: right; font-weight: 600;">{{ counts.snapshots }}</td>
+                        <td style="text-align: right; font-weight: 600;" id="count-snapshots">{{ counts.snapshots }}</td>
                         <td>
                             {% if sync_status.snapshots %}
                             <span class="text-muted small">{{ sync_status.snapshots.last_sync_friendly }}</span>
@@ -181,7 +219,7 @@
                     </tr>
                     <tr>
                         <td><i class="bi bi-exclamation-triangle"></i> Alerts</td>
-                        <td style="text-align: right; font-weight: 600;">{{ counts.alerts }}</td>
+                        <td style="text-align: right; font-weight: 600;" id="count-alerts">{{ counts.alerts }}</td>
                         <td>
                             {% if sync_status.alerts %}
                             <span class="text-muted small">{{ sync_status.alerts.last_sync_friendly }}</span>
@@ -204,7 +242,7 @@
                     </tr>
                     <tr>
                         <td><i class="bi bi-pc-display"></i> Virtual Machines</td>
-                        <td style="text-align: right; font-weight: 600;">{{ counts.virtual_machines }}</td>
+                        <td style="text-align: right; font-weight: 600;" id="count-virtual_machines">{{ counts.virtual_machines }}</td>
                         <td>
                             {% if sync_status.virtual_machines %}
                             <span class="text-muted small">{{ sync_status.virtual_machines.last_sync_friendly }}</span>
@@ -227,7 +265,7 @@
                     </tr>
                     <tr>
                         <td><i class="bi bi-people"></i> Clients</td>
-                        <td style="text-align: right; font-weight: 600;">{{ counts.clients }}</td>
+                        <td style="text-align: right; font-weight: 600;" id="count-clients">{{ counts.clients }}</td>
                         <td>
                             {% if sync_status.clients %}
                             <span class="text-muted small">{{ sync_status.clients.last_sync_friendly }}</span>
@@ -353,6 +391,111 @@ document.addEventListener('DOMContentLoaded', function() {
         option.value = tz;
         datalist.appendChild(option);
     });
+});
+
+// Load auto-sync settings on page load
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadAutoSyncSettings();
+});
+
+async function loadAutoSyncSettings() {
+    try {
+        const response = await fetch('/api/sync/next');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Set toggle state
+            const toggle = document.getElementById('auto-sync-toggle');
+            toggle.checked = data.auto_sync_enabled;
+            
+            // Set frequency
+            const frequency = document.getElementById('sync-frequency');
+            frequency.value = data.frequency_hours.toString();
+            
+            // Update status display
+            updateAutoSyncStatus(data);
+        }
+    } catch (error) {
+        console.error('Failed to load auto-sync settings:', error);
+    }
+}
+
+function updateAutoSyncStatus(data) {
+    const statusContainer = document.getElementById('auto-sync-status');
+    const statusBadge = statusContainer.querySelector('.status-badge');
+    const nextSyncTime = document.getElementById('next-sync-time');
+    
+    if (data.auto_sync_enabled) {
+        statusBadge.className = 'status-badge status-success';
+        statusBadge.textContent = 'Enabled';
+        
+        if (data.next_sync) {
+            const nextSync = new Date(data.next_sync);
+            const now = new Date();
+            const diffMinutes = Math.round((nextSync - now) / (1000 * 60));
+            
+            if (diffMinutes > 60) {
+                const hours = Math.round(diffMinutes / 60);
+                nextSyncTime.textContent = `Next sync in ${hours} hour${hours !== 1 ? 's' : ''}`;
+            } else if (diffMinutes > 0) {
+                nextSyncTime.textContent = `Next sync in ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`;
+            } else {
+                nextSyncTime.textContent = 'Next sync starting soon...';
+            }
+        } else {
+            nextSyncTime.textContent = 'Next sync after manual sync completes';
+        }
+    } else {
+        statusBadge.className = 'status-badge status-danger';
+        statusBadge.textContent = 'Disabled';
+        nextSyncTime.textContent = '';
+    }
+}
+
+// Handle auto-sync toggle
+document.getElementById('auto-sync-toggle').addEventListener('change', async function() {
+    const enabled = this.checked;
+    
+    try {
+        const response = await fetch('/api/preferences/auto-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enabled })
+        });
+        
+        if (response.ok) {
+            await loadAutoSyncSettings();
+        } else {
+            this.checked = !enabled;
+            alert('Failed to update auto-sync setting');
+        }
+    } catch (error) {
+        this.checked = !enabled;
+        alert('Error updating auto-sync: ' + error.message);
+    }
+});
+
+// Handle frequency change
+document.getElementById('sync-frequency').addEventListener('change', async function() {
+    const hours = parseInt(this.value);
+    
+    try {
+        const response = await fetch('/api/preferences/auto-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ frequency_hours: hours })
+        });
+        
+        if (response.ok) {
+            await loadAutoSyncSettings();
+        } else {
+            alert('Failed to update sync frequency');
+            await loadAutoSyncSettings(); // Reload to reset
+        }
+    } catch (error) {
+        alert('Error updating frequency: ' + error.message);
+        await loadAutoSyncSettings(); // Reload to reset
+    }
 });
 
 function startSync() {

@@ -319,8 +319,8 @@ body {
 
 /* Template Editor */
 .template-editor {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 2rem;
     margin-top: 1rem;
 }
@@ -330,6 +330,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 3px;
     padding: 1.5rem;
+    width: 100%;
 }
 
 .editor-panel h3 {
@@ -343,8 +344,16 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 3px;
     width: 100%;
-    min-height: 600px;
+    min-height: 800px;
     background-color: white;
+}
+
+/* Monaco Editor Container */
+#template-html-editor {
+    height: 600px;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    margin-bottom: 1rem;
 }
 
 /* Loading Spinner */

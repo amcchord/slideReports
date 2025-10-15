@@ -110,6 +110,7 @@ const syncManager = {
         const progressContainer = document.getElementById('sync-progress-items');
         let pollCount = 0;
         const maxPolls = 300; // 5 minutes max (300 * 1000ms)
+        let lastCountUpdate = 0;
         
         while (this.isSyncing && pollCount < maxPolls) {
             try {
@@ -118,6 +119,12 @@ const syncManager = {
                 
                 if (progressContainer) {
                     this.updateProgressDisplay(data.sources, progressContainer, data.current_source);
+                }
+                
+                // Update counts every 5 seconds
+                if (pollCount === 0 || pollCount - lastCountUpdate >= 5) {
+                    this.updateDataCounts(data.counts);
+                    lastCountUpdate = pollCount;
                 }
                 
                 // Check sync state
@@ -183,6 +190,30 @@ const syncManager = {
             msg.innerHTML = `<strong>Currently syncing:</strong> ${status[currentSource]?.name || currentSource}`;
             container.prepend(msg);
         }
+    },
+    
+    /**
+     * Update data counts in the dashboard table
+     */
+    updateDataCounts(counts) {
+        if (!counts) return;
+        
+        const dataSources = [
+            'devices',
+            'agents', 
+            'backups',
+            'snapshots',
+            'alerts',
+            'virtual_machines',
+            'clients'
+        ];
+        
+        dataSources.forEach(source => {
+            const countElement = document.getElementById(`count-${source}`);
+            if (countElement && counts[source] !== undefined) {
+                countElement.textContent = counts[source];
+            }
+        });
     }
 };
 
@@ -197,7 +228,7 @@ const templateManager = {
         
         if (button) {
             button.disabled = true;
-            button.innerHTML = '<span class="spinner"></span> Generating...';
+            button.innerHTML = '<span class="spinner"></span> Generating (1-5 minutes)...';
         }
         
         try {
@@ -218,18 +249,42 @@ const templateManager = {
             
             const data = await response.json();
             
-            // Update preview
-            if (previewFrame) {
-                const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
-                previewDoc.open();
-                previewDoc.write(data.html);
-                previewDoc.close();
-            }
-            
-            // Update hidden field if exists
+            // Update the hidden textarea first (always)
             const htmlField = document.getElementById('template-html');
             if (htmlField) {
                 htmlField.value = data.html;
+            }
+            
+            // Try to update Monaco editor if it exists
+            // Check both global variables that might be set
+            const editor = window.monacoEditor || window.monacoEditorInstance;
+            if (editor && editor.setValue) {
+                try {
+                    editor.setValue(data.html);
+                    console.log('Updated Monaco editor with generated template');
+                } catch (e) {
+                    console.error('Failed to update Monaco editor:', e);
+                    // Preview will update from textarea
+                }
+            } else {
+                console.log('Monaco editor not ready, updated textarea. Will retry...');
+                
+                // Wait a bit and try again (Monaco might still be loading)
+                setTimeout(() => {
+                    const retryEditor = window.monacoEditor || window.monacoEditorInstance;
+                    if (retryEditor && retryEditor.setValue) {
+                        retryEditor.setValue(data.html);
+                        console.log('Updated Monaco editor with generated template (retry succeeded)');
+                    }
+                }, 500);
+                
+                // Update preview manually since Monaco isn't ready
+                if (previewFrame) {
+                    const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+                    previewDoc.open();
+                    previewDoc.write(data.html);
+                    previewDoc.close();
+                }
             }
             
             utils.showToast('Template generated successfully', 'success');
