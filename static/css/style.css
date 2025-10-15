@@ -1,12 +1,16 @@
 /* Slide Reports System - Desktop Styles
    Adapted from mobile app with focus on light mode for professional reports */
 
+/* Import D-DIN Font */
+@import url('../fonts/dattoDin/dattoDin.css');
+
 :root {
     --bs-body-font-family: 'D-DIN', system-ui, -apple-system, sans-serif;
-    --primary-color: #3b82f6;
-    --primary-dark: #2563eb;
+    /* Slide logo blue colors */
+    --primary-color: #1e88e5;
+    --primary-dark: #1565c0;
     --success-color: #047857;
-    --warning-color: #b45309;
+    --warning-color: #f59e0b;
     --danger-color: #dc2626;
     --bg-color: #f5f7fa;
     --card-bg: #ffffff;
@@ -67,7 +71,7 @@ body {
 .card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 3px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     margin-bottom: 1.5rem;
     transition: box-shadow 0.2s ease;
@@ -103,7 +107,7 @@ body {
 /* Buttons */
 .btn {
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: 3px;
     padding: 0.5rem 1rem;
     transition: all 0.2s ease;
 }
@@ -143,7 +147,7 @@ body {
 .form-control, .form-select {
     background-color: var(--card-bg);
     border: 1px solid #d1d5db;
-    border-radius: 6px;
+    border-radius: 3px;
     color: var(--text-primary);
 }
 
@@ -156,7 +160,7 @@ body {
 .status-badge {
     display: inline-block;
     padding: 0.25rem 0.75rem;
-    border-radius: 4px;
+    border-radius: 2px;
     font-size: 0.875rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -185,7 +189,7 @@ body {
 /* Progress Bar */
 .progress {
     height: 30px;
-    border-radius: 6px;
+    border-radius: 3px;
     background-color: #e5e7eb;
     overflow: hidden;
 }
@@ -251,7 +255,7 @@ body {
 .metric-card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 3px;
     padding: 1.5rem;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
@@ -291,7 +295,7 @@ body {
 .sync-item {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 3px;
     padding: 1rem;
     margin-bottom: 1rem;
 }
@@ -324,7 +328,7 @@ body {
 .editor-panel {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 3px;
     padding: 1.5rem;
 }
 
@@ -337,7 +341,7 @@ body {
 
 .preview-frame {
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 3px;
     width: 100%;
     min-height: 600px;
     background-color: white;
@@ -361,7 +365,7 @@ body {
 /* Alert Messages */
 .alert {
     padding: 1rem 1.5rem;
-    border-radius: 6px;
+    border-radius: 3px;
     margin-bottom: 1rem;
 }
 
@@ -434,7 +438,7 @@ body {
 .dashboard-metrics {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 3px;
     padding: 1.5rem;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
@@ -442,7 +446,7 @@ body {
 .dashboard-sync {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 3px;
     padding: 1.5rem;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }

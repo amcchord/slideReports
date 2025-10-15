@@ -1,0 +1,96 @@
+/* Regular D-DIN */
+@font-face {
+  font-family: 'D-DIN';
+  src: url('./D-DIN.woff2') format('woff2'),
+       url('./D-DIN.woff') format('woff'),
+       url('./D-DIN.ttf') format('truetype'),
+       url('./D-DIN.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bold D-DIN */
+@font-face {
+  font-family: 'D-DIN';
+  src: url('./D-DIN-Bold.woff2') format('woff2'),
+       url('./D-DIN-Bold.woff') format('woff'),
+       url('./D-DIN-Bold.ttf') format('truetype'),
+       url('./D-DIN-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Italic D-DIN */
+@font-face {
+  font-family: 'D-DIN';
+  src: url('./D-DIN-Italic.woff2') format('woff2'),
+       url('./D-DIN-Italic.woff') format('woff'),
+       url('./D-DIN-Italic.ttf') format('truetype'),
+       url('./D-DIN-Italic.otf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Condensed D-DIN */
+@font-face {
+  font-family: 'D-DIN Condensed';
+  src: url('./D-DINCondensed.woff2') format('woff2'),
+       url('./D-DINCondensed.woff') format('woff'),
+       url('./D-DINCondensed.ttf') format('truetype'),
+       url('./D-DINCondensed.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Condensed Bold D-DIN */
+@font-face {
+  font-family: 'D-DIN Condensed';
+  src: url('./D-DINCondensed-Bold.woff2') format('woff2'),
+       url('./D-DINCondensed-Bold.woff') format('woff'),
+       url('./D-DINCondensed-Bold.ttf') format('truetype'),
+       url('./D-DINCondensed-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Expanded D-DIN */
+@font-face {
+  font-family: 'D-DIN Expanded';
+  src: url('./D-DINExp.woff2') format('woff2'),
+       url('./D-DINExp.woff') format('woff'),
+       url('./D-DINExp.ttf') format('truetype'),
+       url('./D-DINExp.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Expanded Bold D-DIN */
+@font-face {
+  font-family: 'D-DIN Expanded';
+  src: url('./D-DINExp-Bold.woff2') format('woff2'),
+       url('./D-DINExp-Bold.woff') format('woff'),
+       url('./D-DINExp-Bold.ttf') format('truetype'),
+       url('./D-DINExp-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Expanded Italic D-DIN */
+@font-face {
+  font-family: 'D-DIN Expanded';
+  src: url('./D-DINExp-Italic.woff2') format('woff2'),
+       url('./D-DINExp-Italic.woff') format('woff'),
+       url('./D-DINExp-Italic.ttf') format('truetype'),
+       url('./D-DINExp-Italic.otf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+} 

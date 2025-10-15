@@ -36,6 +36,26 @@
     </script>
     {% endif %}
     
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-lightning"></i> Quick Actions
+        </div>
+        <div class="card-body">
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{{ url_for('reports_builder') }}" class="btn btn-primary">
+                    <i class="bi bi-file-earmark-plus"></i> Build New Report
+                </a>
+                <a href="{{ url_for('templates_list') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-layout-text-window-reverse"></i> Manage Templates
+                </a>
+                <a href="{{ url_for('templates_new') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-magic"></i> Create Template with AI
+                </a>
+            </div>
+        </div>
+    </div>
+    
     <!-- Dashboard 2-Column Layout -->
     <div class="dashboard-grid">
         <!-- Left Column: Metrics Table -->
@@ -90,51 +110,35 @@
                 <div id="sync-progress-items"></div>
             </div>
             
-            <div id="sync-status-list" class="sync-status-compact">
-                {% for key, status in sync_status.items() %}
-                <div class="sync-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="sync-item-name">{{ status.name }}</span>
-                        {% if status.status == 'completed' %}
-                        <span class="status-badge status-success">✓</span>
-                        {% elif status.status == 'error' %}
-                        <span class="status-badge status-danger">✗</span>
-                        {% else %}
-                        <span class="status-badge">-</span>
-                        {% endif %}
-                    </div>
-                    <div class="sync-item-status text-muted">
-                        {{ status.total_items }} items
-                        {% if status.last_sync %}
-                        • {{ status.last_sync_friendly }}
-                        {% endif %}
-                    </div>
-                    {% if status.error_message %}
-                    <div class="text-danger small">{{ status.error_message }}</div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    
-    <!-- Quick Actions -->
-    <div class="card">
-        <div class="card-header">
-            <i class="bi bi-lightning"></i> Quick Actions
-        </div>
-        <div class="card-body">
-            <div class="d-grid gap-2 d-md-flex">
-                <a href="{{ url_for('reports_builder') }}" class="btn btn-primary">
-                    <i class="bi bi-file-earmark-plus"></i> Build New Report
-                </a>
-                <a href="{{ url_for('templates_list') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-layout-text-window-reverse"></i> Manage Templates
-                </a>
-                <a href="{{ url_for('templates_new') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-magic"></i> Create Template with AI
-                </a>
-            </div>
+            <table class="metrics-table">
+                <tbody>
+                    {% for key, status in sync_status.items() %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-database"></i> {{ status.name }}
+                            {% if status.error_message %}
+                            <div class="text-danger small">{{ status.error_message }}</div>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right; width: 30%;">
+                            <div style="font-size: 1rem; font-weight: 600;">{{ status.total_items }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                {% if status.last_sync %}{{ status.last_sync_friendly }}{% else %}-{% endif %}
+                            </div>
+                        </td>
+                        <td style="text-align: center; width: 10%;">
+                            {% if status.status == 'completed' %}
+                            <span class="status-badge status-success">✓</span>
+                            {% elif status.status == 'error' %}
+                            <span class="status-badge status-danger">✗</span>
+                            {% else %}
+                            <span class="status-badge">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
