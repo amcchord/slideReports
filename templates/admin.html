@@ -98,6 +98,68 @@
             </div>
         </div>
     </div>
+    
+    <!-- Scheduled Email Reports -->
+    {% if email_schedules is defined %}
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-envelope-check"></i> Scheduled Email Reports (All Users)
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>API Key</th>
+                            <th>Schedule Name</th>
+                            <th>Recipient</th>
+                            <th>Frequency</th>
+                            <th>Next Run</th>
+                            <th>Enabled</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in email_schedules %}
+                        <tr id="schedule-{{ schedule.api_key_hash }}-{{ schedule.schedule_id }}">
+                            <td><code>{{ schedule.api_key_hash_short }}...</code></td>
+                            <td>{{ schedule.name }}</td>
+                            <td><small>{{ schedule.email_address }}</small></td>
+                            <td>{{ schedule.frequency_display }}</td>
+                            <td>
+                                {% if schedule.next_run_at %}
+                                    <small>{{ schedule.next_run_at[:16].replace('T', ' ') }} UTC</small>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if schedule.enabled == 1 %}
+                                <span class="status-badge status-success">Enabled</span>
+                                {% else %}
+                                <span class="status-badge status-danger">Disabled</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteEmailSchedule('{{ schedule.api_key_hash }}', {{ schedule.schedule_id }})" title="Delete Schedule">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                {% if not email_schedules %}
+                <div class="empty-state">
+                    <i class="bi bi-envelope"></i>
+                    <p>No email schedules found in the system</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>
@@ -142,6 +204,31 @@ async function deleteKeyData(hash, hashShort) {
             window.location.reload();
         } else {
             alert('Failed to delete data');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteEmailSchedule(apiKeyHash, scheduleId) {
+    if (!confirm(`Are you sure you want to delete this email schedule?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/admin/api/email-schedules/${apiKeyHash}/${scheduleId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            // Remove the row from the table
+            const row = document.getElementById(`schedule-${apiKeyHash}-${scheduleId}`);
+            if (row) {
+                row.remove();
+            }
+            alert('Email schedule deleted successfully');
+        } else {
+            alert('Failed to delete email schedule');
         }
     } catch (error) {
         alert('Error: ' + error.message);

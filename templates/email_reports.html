@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Email Reports - Slide Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+    .schedule-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: box-shadow 0.2s;
+    }
+    
+    .schedule-card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .badge-enabled {
+        background-color: #198754;
+    }
+    
+    .badge-disabled {
+        background-color: #6c757d;
+    }
+    
+    .date-range-badge {
+        background-color: #0d6efd;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+    
+    .loading-spinner {
+        display: none;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #0d6efd;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 0.5rem;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .sending .loading-spinner {
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-envelope"></i> Email Reports</h1>
+        <div>
+            <a href="{{ url_for('email_reports_log') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-clock-history"></i> Email Log
+            </a>
+            <a href="{{ url_for('email_reports_create') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Create Schedule
+            </a>
+        </div>
+    </div>
+    
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        Configure email schedules to send automated backup reports on a daily, weekly, or monthly basis. Use the "Test Send" button to send a test email immediately.
+    </div>
+    
+    <div id="schedules-container">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading schedules...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete this email schedule? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/email_reports.js') }}"></script>
+{% endblock %}
+

@@ -94,15 +94,66 @@
         </div>
     </div>
     
+    <!-- Upcoming Scheduled Reports -->
+    {% if upcoming_schedules %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-calendar-check"></i> Upcoming Scheduled Reports
+            </div>
+            <a href="{{ url_for('email_reports_page') }}" class="btn btn-sm btn-outline-primary">
+                Manage Schedules
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Schedule</th>
+                            <th>Recipient</th>
+                            <th>Frequency</th>
+                            <th>Next Send</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in upcoming_schedules %}
+                        <tr>
+                            <td>{{ schedule.name }}</td>
+                            <td><small>{{ schedule.email_address }}</small></td>
+                            <td>
+                                {% if schedule.schedule_frequency == 'daily' %}
+                                    <span class="badge bg-info">Daily</span>
+                                {% elif schedule.schedule_frequency == 'weekly' %}
+                                    <span class="badge bg-primary">Weekly</span>
+                                {% elif schedule.schedule_frequency == 'monthly' %}
+                                    <span class="badge bg-success">Monthly</span>
+                                {% endif %}
+                            </td>
+                            <td><small>{{ schedule.next_run_at[:16].replace('T', ' ') }} UTC</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Unified Data Summary & Synchronization -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
                 <i class="bi bi-table"></i> Data Summary & Synchronization
             </div>
-            <div class="text-muted small">
-                <strong>Timezone:</strong> {{ timezone }} 
-                <a href="#" onclick="changeTimezone(); return false;" class="ms-2">Change</a>
+            <div>
+                <button class="btn btn-sm btn-outline-danger me-2" onclick="clearSyncData()">
+                    <i class="bi bi-trash"></i> Clear Local Data
+                </button>
+                <span class="text-muted small">
+                    <strong>Timezone:</strong> {{ timezone }} 
+                    <a href="#" onclick="changeTimezone(); return false;" class="ms-2">Change</a>
+                </span>
             </div>
         </div>
         <div class="card-body">
@@ -558,6 +609,33 @@ async function saveTimezone() {
         errorDiv.style.display = 'block';
         saveBtn.disabled = false;
         saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Save Changes';
+    }
+}
+
+async function clearSyncData() {
+    if (!confirm('Are you sure you want to clear all local synced data? This will delete all devices, backups, agents, and other synced information but keep your preferences, templates, and email schedules. You will need to sync again to rebuild the data.')) {
+        return;
+    }
+    
+    if (!confirm('This action cannot be undone. Are you absolutely sure?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/data/clear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            alert('Local data cleared successfully. The page will now reload.');
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert('Failed to clear data: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Connection error: ' + error.message);
     }
 }
 

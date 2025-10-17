@@ -20,3 +20,6 @@ APScheduler==3.10.4
 
 # Jinja2 (included with Flask but explicit for clarity)
 Jinja2==3.1.4
+
+# PDF Generation
+weasyprint==62.3

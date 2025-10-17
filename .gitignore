@@ -43,3 +43,6 @@ Thumbs.db
 *.db
 data/
 
+# Large media files
+docs/QuickDemo.mov
+

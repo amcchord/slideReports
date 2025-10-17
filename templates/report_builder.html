@@ -283,16 +283,6 @@ async function previewReport() {
         return;
     }
     
-    // Validate date range for template type
-    const validation = validateDateRange();
-    if (!validation.valid) {
-        if (confirm(validation.message + '\n\nDo you want to continue anyway?')) {
-            // User confirmed, proceed with warning
-        } else {
-            return;
-        }
-    }
-    
     await window.slideReports.reportManager.previewReport(
         templateId,
         startDate,

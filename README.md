@@ -24,6 +24,9 @@ A Flask-based web application for generating customizable reports about Slide ba
 - **Template Editor**: Monaco-powered code editor for creating and customizing HTML templates
 - **Flexible Report Builder**: Select data sources, date ranges, and templates
 - **Report Values Preview**: View and validate data before generating reports
+- **Email Scheduling**: Schedule automated email reports with customizable frequency (daily, weekly, monthly)
+- **PDF Generation**: Generate and email PDF reports using WeasyPrint
+- **Email Delivery Logs**: Track email delivery status and history
 - **Print/PDF Export**: Generate print-ready reports via browser
 - **Multi-User Support**: Isolated databases per API key
 - **Timezone Support**: Display times in user's preferred timezone (defaults to Eastern)
@@ -67,15 +70,22 @@ A Flask-based web application for generating customizable reports about Slide ba
    ```
 
 4. **Configure environment variables**:
-   Create a `.env` file based on `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
+   Create a `.env` file with the following variables:
    
-   Edit `.env` and set:
-   - `ENCRYPTION_KEY`: 32-character hex string (generate with `python -c "import os; print(os.urandom(16).hex())"`)
-   - `CLAUDE_API_KEY`: Your Anthropic API key
-   - `FLASK_SECRET_KEY`: Random secret for Flask sessions
+   ```bash
+   # Required
+   ENCRYPTION_KEY=<32-character hex string>  # Generate with: python -c "import os; print(os.urandom(16).hex())"
+   CLAUDE_API_KEY=<your-anthropic-api-key>
+   FLASK_SECRET_KEY=<random-secret-key>
+   
+   # Email Configuration (for scheduled reports)
+   SMTP_SERVER=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USERNAME=<your-email@example.com>
+   SMTP_PASSWORD=<your-app-password>
+   SMTP_FROM_EMAIL=<sender-email@example.com>
+   SMTP_FROM_NAME=Slide Reports
+   ```
 
 5. **Create data directory**:
    ```bash
@@ -168,6 +178,26 @@ progress bars, and a table of recent backups sorted by date.
 5. Click "Preview Report"
 6. Print or save as PDF using browser's print function
 
+### Email Scheduling
+
+Schedule automated report delivery via email:
+
+1. Navigate to "Email Reports" from the dashboard
+2. Click "Create New Schedule"
+3. Configure the schedule:
+   - **Name**: Descriptive name for the schedule
+   - **Template**: Select from your saved templates
+   - **Recipients**: Comma-separated email addresses
+   - **Frequency**: Daily, Weekly, or Monthly
+   - **Time**: When to send (in your timezone)
+   - **Date Range**: How far back to include data (7, 14, 30, 60, or 90 days)
+   - **Data Sources**: Select which data to include in the report
+4. Click "Save Schedule"
+5. Use "Test Email" to verify delivery before enabling
+6. View delivery history in the Email Log
+
+Reports are automatically generated as PDFs and emailed to recipients based on the schedule.
+
 ## Data Sources
 
 Each data source tracks specific metrics:
@@ -223,6 +253,7 @@ Each data source tracks specific metrics:
 - `GET /admin/login` - Admin login page
 - `POST /api/admin/login` - Admin authentication
 - `GET /admin` - Admin dashboard
+- `DELETE /admin/api/email-schedules/{api_key_hash}/{id}` - Delete user's email schedule
 
 ### Reports
 
@@ -230,6 +261,19 @@ Each data source tracks specific metrics:
 - `GET /reports/values` - Report values preview interface
 - `POST /api/reports/preview` - Generate preview
 - `POST /api/reports/values` - Get available report data values
+
+### Email Scheduling
+
+- `GET /email-reports` - List all scheduled email reports
+- `GET /email-reports/create` - Create new email schedule
+- `GET /email-reports/edit/{id}` - Edit email schedule
+- `GET /email-reports/log` - View email delivery logs
+- `GET /api/email-schedules` - Get all schedules (JSON)
+- `POST /api/email-schedules` - Create new schedule
+- `GET /api/email-schedules/{id}` - Get schedule details
+- `PATCH /api/email-schedules/{id}` - Update schedule
+- `DELETE /api/email-schedules/{id}` - Delete schedule
+- `POST /api/email-schedules/{id}/test` - Send test email
 
 ### Preferences
 
@@ -245,6 +289,8 @@ Each user's SQLite database contains:
 - `alerts`, `audits`, `clients`, `users` - Additional data
 - `networks`, `virtual_machines`, `file_restores`, `image_exports`
 - `accounts`
+- `email_schedules` - Scheduled email report configurations
+- `email_logs` - Email delivery history and status
 
 Templates are stored in separate database: `{api_key_hash}_templates.db`
 
@@ -261,6 +307,14 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 - **Claude API Error**: Check CLAUDE_API_KEY in `.env`
 - **Generation timeout**: Try simpler description
 - **Invalid HTML**: Edit manually in advanced section
+
+### Email Scheduling Errors
+
+- **SMTP Authentication Failed**: Verify SMTP credentials in `.env`
+- **Connection Timeout**: Check SMTP_SERVER and SMTP_PORT settings
+- **PDF Generation Failed**: Ensure WeasyPrint dependencies are installed
+- **Test Email Not Received**: Check spam folder, verify recipient email addresses
+- **Schedule Not Running**: Check that the Flask application is running continuously
 
 ### Database Issues
 
@@ -295,6 +349,10 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 │   ├── template_editor.html
 │   ├── report_builder.html
 │   ├── report_values.html
+│   ├── email_reports.html
+│   ├── email_reports_create.html
+│   ├── email_reports_edit.html
+│   ├── email_log.html
 │   ├── admin_login.html
 │   ├── admin.html
 │   └── error.html
@@ -304,11 +362,16 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 │   │   ├── bootstrap-icons.css
 │   │   └── style.css
 │   ├── js/
-│   │   └── main.js
+│   │   ├── main.js
+│   │   └── email_reports.js
 │   ├── img/
 │   │   └── logo.png
 │   └── fonts/
 │       └── dattoDin/     # Datto Din font family
+├── docs/                 # Documentation and media
+│   ├── QuickDemoSmall.mov  # Quick demo video
+│   ├── slideAPI.json
+│   └── slideLogoTemplate.png
 └── data/                 # SQLite databases (not in git)
 ```
 

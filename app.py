@@ -13,9 +13,15 @@ from lib.slide_api import SlideAPIClient
 from lib.sync import SyncEngine
 from lib.templates import TemplateManager
 from lib.ai_generator import AITemplateGenerator
-from lib.report_generator import ReportGenerator
+from lib.report_generator import ReportGenerator, format_datetime_friendly
 from lib.background_sync import background_sync
 from lib.scheduler import auto_sync_scheduler
+from lib.email_schedules import EmailScheduleManager
+from lib.email_service import EmailService
+from lib.email_scheduler import EmailScheduler
+from lib.pdf_service import PDFService
+import pytz
+import re
 
 # Application version
 VERSION = "1.0.0"
@@ -42,6 +48,16 @@ claude_api_key = os.environ.get('CLAUDE_API_KEY')
 if not claude_api_key:
     raise ValueError("CLAUDE_API_KEY environment variable must be set")
 ai_generator = AITemplateGenerator(claude_api_key)
+
+# Initialize email service
+postmark_api_key = os.environ.get('POSTMARK_API_KEY')
+if not postmark_api_key:
+    logger.warning("POSTMARK_API_KEY not set - email functionality will be disabled")
+    email_service = None
+    email_scheduler = None
+else:
+    email_service = EmailService(postmark_api_key)
+    email_scheduler = EmailScheduler(email_service)
 
 
 # Helper Functions
@@ -196,11 +212,27 @@ def dashboard(api_key, api_key_hash):
         else:
             status['last_sync_friendly'] = 'Never'
     
+    # Get upcoming scheduled emails
+    upcoming_schedules = []
+    if email_service:
+        esm = EmailScheduleManager(db.db_path)
+        all_schedules = esm.list_schedules()
+        now_utc = datetime.utcnow().isoformat()
+        upcoming_schedules = [
+            s for s in all_schedules 
+            if s.get('enabled') == 1 and s.get('next_run_at') and s.get('next_run_at') > now_utc
+        ]
+        # Sort by next_run_at
+        upcoming_schedules.sort(key=lambda x: x.get('next_run_at', ''))
+        # Limit to next 5
+        upcoming_schedules = upcoming_schedules[:5]
+    
     return render_template('dashboard.html',
                          sync_status=sync_status,
                          counts=counts,
                          timezone=timezone,
-                         is_syncing=bg_state.get('status') == 'syncing')
+                         is_syncing=bg_state.get('status') == 'syncing',
+                         upcoming_schedules=upcoming_schedules)
 
 
 @app.route('/api/sync', methods=['POST'])
@@ -217,6 +249,25 @@ def api_sync(api_key, api_key_hash):
         return jsonify({'error': 'Sync already in progress'}), 409
     
     return jsonify({'status': 'started', 'message': 'Sync started in background'}), 202
+
+
+@app.route('/api/data/clear', methods=['POST'])
+@require_api_key
+def api_data_clear(api_key, api_key_hash):
+    """Clear all synced data while preserving preferences and schedules"""
+    try:
+        db_path = get_database_path(api_key_hash)
+        db = Database(db_path)
+        db.clear_sync_data()
+        
+        # Also clear the background sync state to ensure it doesn't think a sync is in progress
+        background_sync.clear_sync_state(api_key_hash)
+        
+        logger.info(f"Cleared sync data for {api_key_hash[:8]}")
+        return jsonify({'success': True, 'message': 'All synced data cleared successfully'}), 200
+    except Exception as e:
+        logger.error(f"Error clearing sync data: {e}")
+        return jsonify({'error': 'Failed to clear data'}), 500
 
 
 @app.route('/api/sync/status')
@@ -288,6 +339,31 @@ def templates_list(api_key, api_key_hash):
     """List all templates"""
     tm = TemplateManager(api_key_hash)
     templates = tm.list_templates()
+    
+    # Get user timezone and format dates
+    db = Database(get_database_path(api_key_hash))
+    timezone_str = db.get_preference('timezone', 'America/New_York')
+    user_tz = pytz.timezone(timezone_str)
+    
+    # Format dates for display
+    for template in templates:
+        if template.get('created_at'):
+            try:
+                created_dt = datetime.fromisoformat(template['created_at'])
+                template['created_at_friendly'] = format_datetime_friendly(created_dt, user_tz)
+            except Exception:
+                template['created_at_friendly'] = template['created_at']
+        else:
+            template['created_at_friendly'] = 'Unknown'
+        
+        if template.get('updated_at'):
+            try:
+                updated_dt = datetime.fromisoformat(template['updated_at'])
+                template['updated_at_friendly'] = format_datetime_friendly(updated_dt, user_tz)
+            except Exception:
+                template['updated_at_friendly'] = template['updated_at']
+        else:
+            template['updated_at_friendly'] = 'Unknown'
     
     return render_template('templates_list.html', templates=templates)
 
@@ -626,6 +702,485 @@ def api_set_timezone(api_key, api_key_hash):
 def report_values_docs(api_key, api_key_hash):
     """Documentation page for all available report template variables"""
     return render_template('report_values.html')
+
+
+@app.route('/email-reports')
+@require_api_key
+def email_reports_page(api_key, api_key_hash):
+    """Email schedules management page"""
+    if not email_service:
+        return render_template('error.html', error='Email functionality is not configured. Please set POSTMARK_API_KEY in environment.'), 503
+    
+    return render_template('email_reports.html')
+
+
+@app.route('/email-reports/create')
+@require_api_key
+def email_reports_create(api_key, api_key_hash):
+    """Create email schedule page"""
+    if not email_service:
+        return render_template('error.html', error='Email functionality is not configured. Please set POSTMARK_API_KEY in environment.'), 503
+    
+    # Get templates for dropdown
+    tm = TemplateManager(api_key_hash)
+    templates = tm.list_templates()
+    
+    # Get clients for optional filtering
+    db = Database(get_database_path(api_key_hash))
+    clients = db.get_records('clients', order_by='name')
+    timezone = get_validated_timezone(db)
+    
+    return render_template('email_reports_create.html', 
+                         templates=templates,
+                         clients=clients,
+                         timezone=timezone)
+
+
+@app.route('/email-reports/edit/<int:schedule_id>')
+@require_api_key
+def email_reports_edit(api_key, api_key_hash, schedule_id):
+    """Edit email schedule page"""
+    if not email_service:
+        return render_template('error.html', error='Email functionality is not configured. Please set POSTMARK_API_KEY in environment.'), 503
+    
+    # Get the schedule
+    db_path = get_database_path(api_key_hash)
+    esm = EmailScheduleManager(db_path)
+    schedule = esm.get_schedule(schedule_id)
+    
+    if not schedule:
+        return render_template('error.html', error='Schedule not found'), 404
+    
+    # Get templates for dropdown
+    tm = TemplateManager(api_key_hash)
+    templates = tm.list_templates()
+    
+    # Get clients for optional filtering
+    db = Database(db_path)
+    clients = db.get_records('clients', order_by='name')
+    timezone = get_validated_timezone(db)
+    
+    return render_template('email_reports_edit.html', 
+                         templates=templates,
+                         clients=clients,
+                         timezone=timezone,
+                         schedule=schedule)
+
+
+@app.route('/email-reports/log')
+@require_api_key
+def email_reports_log(api_key, api_key_hash):
+    """Email send log page"""
+    if not email_service:
+        return render_template('error.html', error='Email functionality is not configured. Please set POSTMARK_API_KEY in environment.'), 503
+    
+    db_path = get_database_path(api_key_hash)
+    db = Database(db_path)
+    
+    # Get email send log with schedule names
+    with db.get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                l.log_id,
+                l.schedule_id,
+                l.sent_at,
+                l.status,
+                l.error_message,
+                l.recipient_email,
+                l.report_date_range,
+                s.name as schedule_name
+            FROM email_send_log l
+            LEFT JOIN email_schedules s ON l.schedule_id = s.schedule_id
+            ORDER BY l.sent_at DESC
+            LIMIT 100
+        """)
+        logs = [dict(row) for row in cursor.fetchall()]
+    
+    return render_template('email_log.html', logs=logs)
+
+
+@app.route('/api/email-schedules', methods=['GET'])
+@require_api_key
+def api_email_schedules_list(api_key, api_key_hash):
+    """Get all email schedules"""
+    if not email_service:
+        return jsonify({'error': 'Email functionality not configured'}), 503
+    
+    db_path = get_database_path(api_key_hash)
+    esm = EmailScheduleManager(db_path)
+    schedules = esm.list_schedules()
+    
+    # Enrich with template names
+    tm = TemplateManager(api_key_hash)
+    for schedule in schedules:
+        template = tm.get_template(schedule['template_id'])
+        schedule['template_name'] = template['name'] if template else 'Unknown Template'
+    
+    # Enrich with client names if applicable
+    db = Database(db_path)
+    for schedule in schedules:
+        if schedule.get('client_id'):
+            clients = db.get_records('clients', where='client_id = ?', params=(schedule['client_id'],))
+            schedule['client_name'] = clients[0]['name'] if clients else 'Unknown Client'
+        else:
+            schedule['client_name'] = 'All Clients'
+    
+    return jsonify(schedules)
+
+
+@app.route('/api/email-schedules', methods=['POST'])
+@require_api_key
+def api_email_schedules_create(api_key, api_key_hash):
+    """Create new email schedule"""
+    if not email_service:
+        return jsonify({'error': 'Email functionality not configured'}), 503
+    
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    email_address = data.get('email_address', '').strip()
+    template_id = data.get('template_id')
+    date_range_type = data.get('date_range_type', '').strip()
+    client_id = data.get('client_id')
+    attachment_format = data.get('attachment_format', 'html').strip()
+    email_subject = data.get('email_subject')
+    email_body = data.get('email_body')
+    
+    # Validation
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    
+    if not email_address:
+        return jsonify({'error': 'Email address is required'}), 400
+    
+    # Validate email format
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, email_address):
+        return jsonify({'error': 'Invalid email address format'}), 400
+    
+    if template_id is None:
+        return jsonify({'error': 'Template is required'}), 400
+    
+    # Validate template exists
+    tm = TemplateManager(api_key_hash)
+    template = tm.get_template(int(template_id))
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    # Validate date range type
+    valid_date_ranges = ['last_day', '7_days', '30_days', '90_days']
+    if date_range_type not in valid_date_ranges:
+        return jsonify({'error': 'Invalid date range type'}), 400
+    
+    # Validate attachment format
+    valid_formats = ['html', 'pdf', 'both']
+    if attachment_format not in valid_formats:
+        return jsonify({'error': 'Invalid attachment format'}), 400
+    
+    # Get scheduling parameters
+    schedule_frequency = data.get('schedule_frequency')
+    schedule_time = data.get('schedule_time')
+    schedule_day_of_week = data.get('schedule_day_of_week')
+    schedule_day_of_month = data.get('schedule_day_of_month')
+    
+    # Validate scheduling parameters if frequency is set
+    if schedule_frequency:
+        valid_frequencies = ['daily', 'weekly', 'monthly']
+        if schedule_frequency not in valid_frequencies:
+            return jsonify({'error': 'Invalid schedule frequency'}), 400
+        
+        if not schedule_time:
+            return jsonify({'error': 'Schedule time is required when frequency is set'}), 400
+        
+        # Validate time format
+        if not re.match(r'^\d{2}:\d{2}$', schedule_time):
+            return jsonify({'error': 'Invalid time format. Use HH:MM'}), 400
+        
+        if schedule_frequency == 'weekly' and schedule_day_of_week is None:
+            return jsonify({'error': 'Day of week is required for weekly schedules'}), 400
+        
+        if schedule_frequency == 'monthly' and schedule_day_of_month is None:
+            return jsonify({'error': 'Day of month is required for monthly schedules'}), 400
+    
+    # Get user's timezone
+    db_path = get_database_path(api_key_hash)
+    db = Database(db_path)
+    timezone = get_validated_timezone(db)
+    
+    # Create schedule
+    esm = EmailScheduleManager(db_path)
+    schedule_id = esm.create_schedule(
+        name=name,
+        email_address=email_address,
+        template_id=int(template_id),
+        date_range_type=date_range_type,
+        client_id=client_id if client_id else None,
+        attachment_format=attachment_format,
+        email_subject=email_subject,
+        email_body=email_body,
+        schedule_frequency=schedule_frequency,
+        schedule_time=schedule_time,
+        schedule_day_of_week=int(schedule_day_of_week) if schedule_day_of_week is not None else None,
+        schedule_day_of_month=int(schedule_day_of_month) if schedule_day_of_month is not None else None,
+        timezone=timezone
+    )
+    
+    return jsonify({'success': True, 'schedule_id': schedule_id}), 201
+
+
+@app.route('/api/email-schedules/<int:schedule_id>', methods=['GET'])
+@require_api_key
+def api_email_schedules_get(api_key, api_key_hash, schedule_id):
+    """Get single email schedule"""
+    if not email_service:
+        return jsonify({'error': 'Email functionality not configured'}), 503
+    
+    db_path = get_database_path(api_key_hash)
+    esm = EmailScheduleManager(db_path)
+    schedule = esm.get_schedule(schedule_id)
+    
+    if not schedule:
+        return jsonify({'error': 'Schedule not found'}), 404
+    
+    return jsonify(schedule)
+
+
+@app.route('/api/email-schedules/<int:schedule_id>', methods=['PATCH'])
+@require_api_key
+def api_email_schedules_update(api_key, api_key_hash, schedule_id):
+    """Update email schedule"""
+    if not email_service:
+        return jsonify({'error': 'Email functionality not configured'}), 503
+    
+    data = request.get_json()
+    
+    # Validate email if provided
+    if 'email_address' in data:
+        email_address = data['email_address'].strip()
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email_address):
+            return jsonify({'error': 'Invalid email address format'}), 400
+        data['email_address'] = email_address
+    
+    # Validate template if provided
+    if 'template_id' in data:
+        tm = TemplateManager(api_key_hash)
+        template = tm.get_template(int(data['template_id']))
+        if not template:
+            return jsonify({'error': 'Template not found'}), 404
+    
+    # Validate date range type if provided
+    if 'date_range_type' in data:
+        valid_date_ranges = ['last_day', '7_days', '30_days', '90_days']
+        if data['date_range_type'] not in valid_date_ranges:
+            return jsonify({'error': 'Invalid date range type'}), 400
+    
+    # Validate attachment format if provided
+    if 'attachment_format' in data:
+        valid_formats = ['html', 'pdf', 'both']
+        if data['attachment_format'] not in valid_formats:
+            return jsonify({'error': 'Invalid attachment format'}), 400
+    
+    # Validate scheduling parameters if frequency is provided
+    if 'schedule_frequency' in data:
+        schedule_frequency = data.get('schedule_frequency')
+        if schedule_frequency:
+            valid_frequencies = ['daily', 'weekly', 'monthly']
+            if schedule_frequency not in valid_frequencies:
+                return jsonify({'error': 'Invalid schedule frequency'}), 400
+            
+            # If updating frequency, need time too
+            if 'schedule_time' not in data:
+                # Check if existing schedule has time
+                db_path = get_database_path(api_key_hash)
+                esm = EmailScheduleManager(db_path)
+                existing = esm.get_schedule(schedule_id)
+                if not existing or not existing.get('schedule_time'):
+                    return jsonify({'error': 'Schedule time is required when frequency is set'}), 400
+    
+    # Get timezone for recalculation
+    db_path = get_database_path(api_key_hash)
+    db = Database(db_path)
+    timezone = get_validated_timezone(db)
+    
+    # Add timezone to data for recalculation
+    data['timezone'] = timezone
+    
+    # Convert day values to integers if present
+    if 'schedule_day_of_week' in data and data['schedule_day_of_week'] is not None:
+        data['schedule_day_of_week'] = int(data['schedule_day_of_week'])
+    
+    if 'schedule_day_of_month' in data and data['schedule_day_of_month'] is not None:
+        data['schedule_day_of_month'] = int(data['schedule_day_of_month'])
+    
+    esm = EmailScheduleManager(db_path)
+    esm.update_schedule(schedule_id, **data)
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/email-schedules/<int:schedule_id>', methods=['DELETE'])
+@require_api_key
+def api_email_schedules_delete(api_key, api_key_hash, schedule_id):
+    """Delete email schedule"""
+    if not email_service:
+        return jsonify({'error': 'Email functionality not configured'}), 503
+    
+    db_path = get_database_path(api_key_hash)
+    esm = EmailScheduleManager(db_path)
+    esm.delete_schedule(schedule_id)
+    
+    return '', 204
+
+
+@app.route('/api/email-schedules/<int:schedule_id>/test', methods=['POST'])
+@require_api_key
+def api_email_schedules_test(api_key, api_key_hash, schedule_id):
+    """Test send email for a schedule"""
+    if not email_service:
+        return jsonify({'error': 'Email functionality not configured'}), 503
+    
+    # Get schedule
+    db_path = get_database_path(api_key_hash)
+    esm = EmailScheduleManager(db_path)
+    schedule = esm.get_schedule(schedule_id)
+    
+    if not schedule:
+        return jsonify({'error': 'Schedule not found'}), 404
+    
+    # Calculate date range based on date_range_type
+    db = Database(db_path)
+    timezone_str = db.get_preference('timezone', 'America/New_York')
+    user_tz = pytz.timezone(timezone_str)
+    
+    # Get "yesterday" in user's timezone
+    now = datetime.now(user_tz)
+    yesterday = now - timedelta(days=1)
+    end_date = yesterday.replace(hour=23, minute=59, second=59, microsecond=999999)
+    
+    # Calculate start date based on range type
+    date_range_type = schedule['date_range_type']
+    if date_range_type == 'last_day':
+        start_date = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif date_range_type == '7_days':
+        start_date = (yesterday - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+    elif date_range_type == '30_days':
+        start_date = (yesterday - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
+    elif date_range_type == '90_days':
+        start_date = (yesterday - timedelta(days=89)).replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        return jsonify({'error': 'Invalid date range type'}), 400
+    
+    # Get template
+    tm = TemplateManager(api_key_hash)
+    template = tm.get_template(schedule['template_id'])
+    
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    # Determine data sources from template (we'll use all for now)
+    # In a real implementation, you might parse the template to detect which data sources are needed
+    data_sources = ['devices', 'agents', 'backups', 'snapshots', 'alerts', 'audits', 
+                   'clients', 'users', 'networks', 'virtual_machines', 'file_restores', 
+                   'image_exports', 'accounts']
+    
+    # Generate report HTML and get context for email rendering
+    try:
+        generator = ReportGenerator(db)
+        html_content = generator.generate_report_with_base64_images(
+            template['html_content'],
+            start_date,
+            end_date,
+            data_sources,
+            logo_url='/static/img/logo.png',
+            client_id=schedule.get('client_id'),
+            ai_generator=ai_generator
+        )
+        
+        # Build context for email subject and body rendering
+        email_context = generator._build_context(
+            start_date, end_date, user_tz, data_sources, 
+            '/static/img/logo.png', schedule.get('client_id')
+        )
+        
+        # Add exec_summary to context if AI generator is available
+        if ai_generator:
+            try:
+                email_context['exec_summary'] = ai_generator.generate_executive_summary(email_context)
+            except Exception as e:
+                logger.warning(f"AI summary generation failed: {e}")
+                email_context['exec_summary'] = generator._generate_summary(email_context)
+        else:
+            email_context['exec_summary'] = email_context.get('executive_summary', generator._generate_summary(email_context))
+        
+    except Exception as e:
+        logger.error(f"Report generation failed: {e}")
+        return jsonify({'error': f'Report generation failed: {str(e)}'}), 500
+    
+    # Render email subject and body with template variables
+    try:
+        from jinja2 import Template as JinjaTemplate
+        
+        email_subject_template = JinjaTemplate(schedule['email_subject'] or "Slide Backup Report - {{ date_range }}")
+        rendered_subject = email_subject_template.render(**email_context)
+        
+        email_body_template = JinjaTemplate(schedule['email_body'] or """Your Slide Backup Report for {{ date_range }} is ready.
+
+Executive Summary:
+{{ exec_summary }}
+
+Key Metrics:
+- Total Backups: {{ total_backups }}
+- Success Rate: {{ success_rate }}%
+
+Report generated at {{ generated_at }} ({{ timezone }})""")
+        rendered_body = email_body_template.render(**email_context)
+        
+    except Exception as e:
+        logger.error(f"Email template rendering failed: {e}")
+        return jsonify({'error': f'Email template rendering failed: {str(e)}'}), 500
+    
+    # Generate attachments based on format preference
+    attachment_format = schedule.get('attachment_format', 'html')
+    date_str = end_date.strftime('%Y-%m-%d')
+    
+    pdf_content = None
+    pdf_filename = None
+    html_attachment_content = None
+    html_attachment_filename = None
+    
+    if attachment_format in ['pdf', 'both']:
+        try:
+            pdf_content = PDFService.html_to_pdf(html_content)
+            pdf_filename = f"slide-backup-report-{date_str}.pdf"
+        except Exception as e:
+            logger.error(f"PDF generation failed: {e}")
+            return jsonify({'error': f'PDF generation failed: {str(e)}'}), 500
+    
+    if attachment_format in ['html', 'both']:
+        html_attachment_content = html_content.encode('utf-8')
+        html_attachment_filename = f"slide-backup-report-{date_str}.html"
+    
+    # Send email
+    try:
+        success, message = email_service.send_report_email(
+            to_email=schedule['email_address'],
+            subject=rendered_subject,
+            text_body=rendered_body,
+            pdf_content=pdf_content,
+            pdf_filename=pdf_filename,
+            html_content=html_attachment_content,
+            html_filename=html_attachment_filename
+        )
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Test email sent successfully'})
+        else:
+            return jsonify({'error': message}), 500
+            
+    except Exception as e:
+        logger.error(f"Email send failed: {e}")
+        return jsonify({'error': f'Failed to send email: {str(e)}'}), 500
 
 
 @app.route('/api/template-schema.json')
@@ -1161,14 +1716,16 @@ def admin_page():
         # Show simple login page
         return render_template('admin_login.html')
     
-    from lib.admin_utils import list_all_api_keys, get_system_stats, format_bytes
+    from lib.admin_utils import list_all_api_keys, get_system_stats, format_bytes, list_all_email_schedules
     
     api_keys = list_all_api_keys()
     stats = get_system_stats()
+    email_schedules = list_all_email_schedules() if email_service else []
     
     return render_template('admin.html', 
                          api_keys=api_keys, 
                          stats=stats,
+                         email_schedules=email_schedules,
                          format_bytes=format_bytes)
 
 
@@ -1211,6 +1768,24 @@ def admin_toggle_auto_sync(api_key_hash):
     return jsonify({'error': 'Failed to toggle auto-sync'}), 500
 
 
+@app.route('/admin/api/email-schedules/<api_key_hash>/<int:schedule_id>', methods=['DELETE'])
+def admin_delete_email_schedule(api_key_hash, schedule_id):
+    """Delete an email schedule as admin"""
+    admin_pass = os.environ.get('ADMIN_PASS')
+    auth_token = request.cookies.get('admin_auth')
+    
+    if not admin_pass or auth_token != admin_pass:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    from lib.admin_utils import delete_email_schedule
+    
+    success = delete_email_schedule(api_key_hash, schedule_id)
+    
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'error': 'Failed to delete schedule'}), 500
+
+
 @app.route('/admin/api/keys/<api_key_hash>', methods=['DELETE'])
 def admin_delete_key(api_key_hash):
     """Delete all data for a specific API key"""
@@ -1248,6 +1823,14 @@ if __name__ == '__main__':
         logger.info("Auto-sync scheduler initialized")
     except Exception as e:
         logger.error(f"Failed to start auto-sync scheduler: {e}")
+    
+    # Start email scheduler if email service is configured
+    if email_scheduler:
+        try:
+            email_scheduler.start()
+            logger.info("Email scheduler initialized")
+        except Exception as e:
+            logger.error(f"Failed to start email scheduler: {e}")
     
     # Only run in debug mode if not in production
     debug_mode = os.environ.get('FLASK_ENV', 'development') != 'production'

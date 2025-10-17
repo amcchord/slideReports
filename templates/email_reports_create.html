@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Create Email Schedule - Slide Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+    .schedule-option {
+        display: none;
+    }
+    
+    .schedule-option.active {
+        display: block;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 8px;
+        padding: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .section-header {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .timezone-info {
+        background: #f8f9fa;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-envelope-plus"></i> Create Email Schedule</h1>
+        <a href="{{ url_for('email_reports_page') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Schedules
+        </a>
+    </div>
+    
+    <div class="form-card">
+        <form id="scheduleForm" onsubmit="return saveSchedule(event)">
+            <div class="section-header">
+                <i class="bi bi-info-circle"></i> Basic Information
+            </div>
+            
+            <div class="mb-3">
+                <label for="schedule_name" class="form-label">Schedule Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="schedule_name" name="name" required
+                       placeholder="e.g., Weekly Report to Admin">
+                <div class="form-text">A descriptive name to identify this schedule</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="email_address" class="form-label">Recipient Email Address <span class="text-danger">*</span></label>
+                <input type="email" class="form-control" id="email_address" name="email_address" required
+                       placeholder="admin@example.com">
+            </div>
+            
+            <div class="section-header">
+                <i class="bi bi-file-earmark-text"></i> Report Configuration
+            </div>
+            
+            <div class="mb-3">
+                <label for="template_id" class="form-label">Report Template <span class="text-danger">*</span></label>
+                <select class="form-select" id="template_id" name="template_id" required>
+                    <option value="">Select a template...</option>
+                    {% for template in templates %}
+                    <option value="{{ template.template_id }}">
+                        {{ template.name }}
+                        {% if template.is_builtin %}<span class="text-muted">(Built-in)</span>{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="date_range_type" class="form-label">Date Range <span class="text-danger">*</span></label>
+                <select class="form-select" id="date_range_type" name="date_range_type" required>
+                    <option value="">Select date range...</option>
+                    <option value="last_day">Last Day (Yesterday)</option>
+                    <option value="7_days">Last 7 Days</option>
+                    <option value="30_days">Last 30 Days</option>
+                    <option value="90_days">Last 90 Days</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="client_id" class="form-label">Client Filter (Optional)</label>
+                <select class="form-select" id="client_id" name="client_id">
+                    <option value="">All Clients</option>
+                    {% for client in clients %}
+                    <option value="{{ client.client_id }}">{{ client.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="attachment_format" class="form-label">Attachment Format <span class="text-danger">*</span></label>
+                <select class="form-select" id="attachment_format" name="attachment_format" required>
+                    <option value="html">HTML (Recommended)</option>
+                    <option value="pdf">PDF</option>
+                    <option value="both">Both HTML and PDF</option>
+                </select>
+                <div class="form-text">Choose which format(s) to attach to the email</div>
+            </div>
+            
+            <div class="section-header">
+                <i class="bi bi-clock"></i> Schedule Configuration
+            </div>
+            
+            <div class="timezone-info">
+                <i class="bi bi-globe"></i> <strong>Timezone:</strong> {{ timezone }}
+                <span class="ms-2 text-muted">All times are in your configured timezone</span>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Frequency <span class="text-danger">*</span></label>
+                <div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="schedule_frequency" id="freq_daily" value="daily" onchange="updateScheduleUI()">
+                        <label class="form-check-label" for="freq_daily">Daily</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="schedule_frequency" id="freq_weekly" value="weekly" onchange="updateScheduleUI()">
+                        <label class="form-check-label" for="freq_weekly">Weekly</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="schedule_frequency" id="freq_monthly" value="monthly" onchange="updateScheduleUI()">
+                        <label class="form-check-label" for="freq_monthly">Monthly</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="schedule_frequency" id="freq_manual" value="" checked onchange="updateScheduleUI()">
+                        <label class="form-check-label" for="freq_manual">Manual Only</label>
+                    </div>
+                </div>
+                <div class="form-text">Manual Only means you'll use "Test Send" to send reports on demand</div>
+            </div>
+            
+            <div id="schedule_time_container" class="schedule-option">
+                <div class="mb-3">
+                    <label for="schedule_time" class="form-label">Time of Day <span class="text-danger">*</span></label>
+                    <input type="time" class="form-control" id="schedule_time" name="schedule_time" style="max-width: 200px;">
+                    <div class="form-text">24-hour format (e.g., 09:00 for 9 AM, 17:00 for 5 PM)</div>
+                </div>
+            </div>
+            
+            <div id="schedule_weekly_options" class="schedule-option">
+                <div class="mb-3">
+                    <label for="schedule_day_of_week" class="form-label">Day of Week <span class="text-danger">*</span></label>
+                    <select class="form-select" id="schedule_day_of_week" name="schedule_day_of_week" style="max-width: 200px;">
+                        <option value="0">Monday</option>
+                        <option value="1">Tuesday</option>
+                        <option value="2">Wednesday</option>
+                        <option value="3">Thursday</option>
+                        <option value="4">Friday</option>
+                        <option value="5">Saturday</option>
+                        <option value="6">Sunday</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="schedule_monthly_options" class="schedule-option">
+                <div class="mb-3">
+                    <label for="schedule_day_of_month" class="form-label">Day of Month <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="schedule_day_of_month" name="schedule_day_of_month" 
+                           min="1" max="31" style="max-width: 200px;" placeholder="1-31">
+                    <div class="form-text">For months with fewer days, the last valid day will be used</div>
+                </div>
+            </div>
+            
+            <div class="section-header">
+                <i class="bi bi-envelope-paper"></i> Email Customization
+            </div>
+            
+            <div class="mb-3">
+                <label for="email_subject" class="form-label">
+                    Email Subject
+                    <a href="/report-values" target="_blank" class="text-decoration-none ms-1">
+                        <i class="bi bi-question-circle" title="View available variables"></i>
+                    </a>
+                </label>
+                <input type="text" class="form-control" id="email_subject" name="email_subject" 
+                       placeholder="Slide Backup Report - {{ '{{' }} date_range {{ '}}' }}">
+                <div class="form-text">Use Jinja2 template variables like {{ '{{' }} date_range {{ '}}' }}, {{ '{{' }} total_backups {{ '}}' }}, etc.</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="email_body" class="form-label">
+                    Email Body
+                    <button type="button" class="btn btn-sm btn-link p-0" onclick="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Use Defaults
+                    </button>
+                </label>
+                <textarea class="form-control" id="email_body" name="email_body" rows="8"
+                          placeholder="Your Slide Backup Report for {{ '{{' }} date_range {{ '}}' }} is ready..."></textarea>
+                <div class="form-text">
+                    Common variables: {{ '{{' }} date_range {{ '}}' }}, {{ '{{' }} exec_summary {{ '}}' }}, {{ '{{' }} total_backups {{ '}}' }}, {{ '{{' }} success_rate {{ '}}' }}
+                </div>
+            </div>
+            
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="enabled" name="enabled" checked>
+                <label class="form-check-label" for="enabled">
+                    Enabled (schedule will run automatically)
+                </label>
+            </div>
+            
+            <div id="formError" class="alert alert-danger d-none"></div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <span class="loading-spinner"></span>
+                    <span class="button-text"><i class="bi bi-check-circle"></i> Create Schedule</span>
+                </button>
+                <a href="{{ url_for('email_reports_page') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let isSubmitting = false;
+
+function updateScheduleUI() {
+    const frequency = document.querySelector('input[name="schedule_frequency"]:checked').value;
+    
+    // Hide all schedule options
+    document.querySelectorAll('.schedule-option').forEach(el => {
+        el.classList.remove('active');
+    });
+    
+    // Show relevant options based on frequency
+    if (frequency === 'daily' || frequency === 'weekly' || frequency === 'monthly') {
+        document.getElementById('schedule_time_container').classList.add('active');
+        document.getElementById('schedule_time').required = true;
+    } else {
+        document.getElementById('schedule_time').required = false;
+    }
+    
+    if (frequency === 'weekly') {
+        document.getElementById('schedule_weekly_options').classList.add('active');
+        document.getElementById('schedule_day_of_week').required = true;
+    } else {
+        document.getElementById('schedule_day_of_week').required = false;
+    }
+    
+    if (frequency === 'monthly') {
+        document.getElementById('schedule_monthly_options').classList.add('active');
+        document.getElementById('schedule_day_of_month').required = true;
+    } else {
+        document.getElementById('schedule_day_of_month').required = false;
+    }
+}
+
+function resetToDefaults() {
+    const defaultSubject = "Slide Backup Report - {{ '{{' }} date_range {{ '}}' }}";
+    const defaultBody = `Your Slide Backup Report for {{ '{{' }} date_range {{ '}}' }} is ready.
+
+Executive Summary:
+{{ '{{' }} exec_summary {{ '}}' }}
+
+Key Metrics:
+- Total Backups: {{ '{{' }} total_backups {{ '}}' }}
+- Success Rate: {{ '{{' }} success_rate {{ '}}' }}%
+
+Report generated at {{ '{{' }} generated_at {{ '}}' }} ({{ '{{' }} timezone {{ '}}' }})`;
+
+    document.getElementById('email_subject').value = defaultSubject;
+    document.getElementById('email_body').value = defaultBody;
+}
+
+async function saveSchedule(event) {
+    event.preventDefault();
+    
+    if (isSubmitting) {
+        return false;
+    }
+    
+    isSubmitting = true;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const spinner = submitBtn.querySelector('.loading-spinner');
+    const buttonText = submitBtn.querySelector('.button-text');
+    
+    submitBtn.disabled = true;
+    spinner.style.display = 'inline-block';
+    buttonText.innerHTML = '<i class="bi bi-hourglass"></i> Creating...';
+    
+    const formData = new FormData(event.target);
+    const data = {};
+    
+    for (const [key, value] of formData.entries()) {
+        if (key === 'enabled') {
+            data[key] = formData.get(key) === 'on';
+        } else if (value !== '') {
+            data[key] = value;
+        }
+    }
+    
+    // Remove empty optional fields
+    if (!data.schedule_frequency) {
+        delete data.schedule_time;
+        delete data.schedule_day_of_week;
+        delete data.schedule_day_of_month;
+    }
+    
+    try {
+        const response = await fetch('/api/email-schedules', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            window.location.href = '/email-reports';
+        } else {
+            const error = await response.json();
+            document.getElementById('formError').textContent = error.error || 'Failed to create schedule';
+            document.getElementById('formError').classList.remove('d-none');
+        }
+    } catch (error) {
+        document.getElementById('formError').textContent = 'Error: ' + error.message;
+        document.getElementById('formError').classList.remove('d-none');
+    } finally {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        spinner.style.display = 'none';
+        buttonText.innerHTML = '<i class="bi bi-check-circle"></i> Create Schedule';
+    }
+    
+    return false;
+}
+
+// Initialize UI on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateScheduleUI();
+    resetToDefaults();
+});
+</script>
+
+<style>
+    .loading-spinner {
+        display: none;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #0d6efd;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 0.5rem;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
