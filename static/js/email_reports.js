@@ -76,44 +76,55 @@ function renderSchedules() {
         
         html += `
             <div class="schedule-card">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <h5>${escapeHtml(schedule.name)} ${statusBadge}</h5>
-                        <p class="mb-1">
-                            <i class="bi bi-envelope-fill"></i> 
-                            <strong>To:</strong> ${escapeHtml(schedule.email_address)}
-                        </p>
-                        <p class="mb-1">
-                            <i class="bi bi-file-earmark-text"></i> 
-                            <strong>Template:</strong> ${escapeHtml(schedule.template_name)}
-                        </p>
-                        <p class="mb-1">
-                            <i class="bi bi-calendar-range"></i> 
-                            <strong>Date Range:</strong> 
-                            <span class="date-range-badge">${dateRangeLabels[schedule.date_range_type] || schedule.date_range_type}</span>
-                        </p>
-                        <p class="mb-1">
-                            <i class="bi bi-building"></i> 
-                            <strong>Client:</strong> ${escapeHtml(schedule.client_name)}
-                        </p>
-                        <p class="mb-1">
-                            <i class="bi bi-paperclip"></i> 
-                            <strong>Format:</strong> ${formatLabels[attachmentFormat]}
-                        </p>
-                        <p class="mb-0 text-muted small">
-                            <i class="bi bi-chat-text"></i> 
-                            <strong>Subject:</strong> <em>${escapeHtml(subjectPreview)}</em>
-                        </p>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">${escapeHtml(schedule.name)} ${statusBadge}</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <i class="bi bi-envelope-fill text-muted"></i> 
+                                    <span class="text-muted small">Recipient:</span>
+                                    <span class="ms-1">${escapeHtml(schedule.email_address)}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <i class="bi bi-file-earmark-text text-muted"></i> 
+                                    <span class="text-muted small">Template:</span>
+                                    <span class="ms-1">${escapeHtml(schedule.template_name)}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <i class="bi bi-building text-muted"></i> 
+                                    <span class="text-muted small">Client:</span>
+                                    <span class="ms-1">${escapeHtml(schedule.client_name)}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <i class="bi bi-calendar-range text-muted"></i> 
+                                    <span class="text-muted small">Range:</span>
+                                    <span class="date-range-badge ms-1">${dateRangeLabels[schedule.date_range_type] || schedule.date_range_type}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <i class="bi bi-paperclip text-muted"></i> 
+                                    <span class="text-muted small">Format:</span>
+                                    <span class="ms-1">${formatLabels[attachmentFormat]}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <i class="bi bi-chat-text text-muted"></i> 
+                                    <span class="text-muted small">Subject:</span>
+                                    <span class="ms-1 fst-italic" style="font-size: 0.9rem;">${escapeHtml(subjectPreview)}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                        <button class="btn btn-success btn-sm mb-1" onclick="testSendSchedule(${schedule.schedule_id})" id="testBtn${schedule.schedule_id}">
+                    <div class="ms-3 d-flex flex-column gap-1" style="min-width: 120px;">
+                        <button class="btn btn-success btn-sm" onclick="testSendSchedule(${schedule.schedule_id})" id="testBtn${schedule.schedule_id}">
                             <span class="loading-spinner"></span>
                             <i class="bi bi-send-fill"></i> Test Send
                         </button>
-                        <a href="/email-reports/edit/${schedule.schedule_id}" class="btn btn-primary btn-sm mb-1">
+                        <a href="/email-reports/edit/${schedule.schedule_id}" class="btn btn-primary btn-sm">
                             <i class="bi bi-pencil"></i> Edit
                         </a>
-                        <button class="btn btn-danger btn-sm mb-1" onclick="confirmDelete(${schedule.schedule_id})">
+                        <button class="btn btn-danger btn-sm" onclick="confirmDelete(${schedule.schedule_id})">
                             <i class="bi bi-trash"></i> Delete
                         </button>
                     </div>

@@ -43,8 +43,11 @@
         </div>
         <div class="card-body">
             <div class="d-grid gap-2 d-md-flex">
-                <a href="{{ url_for('reports_builder') }}" class="btn btn-primary">
+                <a href="{{ url_for('reports_builder') }}" class="btn btn-outline-primary">
                     <i class="bi bi-file-earmark-plus"></i> Build New Report
+                </a>
+                <a href="{{ url_for('email_reports_create') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-envelope-plus"></i> Schedule Email Report
                 </a>
                 <a href="{{ url_for('templates_list') }}" class="btn btn-outline-primary">
                     <i class="bi bi-layout-text-window-reverse"></i> Manage Templates
@@ -123,11 +126,11 @@
                             <td><small>{{ schedule.email_address }}</small></td>
                             <td>
                                 {% if schedule.schedule_frequency == 'daily' %}
-                                    <span class="badge bg-info">Daily</span>
+                                    <span class="badge badge-soft-info">Daily</span>
                                 {% elif schedule.schedule_frequency == 'weekly' %}
-                                    <span class="badge bg-primary">Weekly</span>
+                                    <span class="badge badge-soft-primary">Weekly</span>
                                 {% elif schedule.schedule_frequency == 'monthly' %}
-                                    <span class="badge bg-success">Monthly</span>
+                                    <span class="badge badge-soft-success">Monthly</span>
                                 {% endif %}
                             </td>
                             <td><small>{{ schedule.next_run_at[:16].replace('T', ' ') }} UTC</small></td>

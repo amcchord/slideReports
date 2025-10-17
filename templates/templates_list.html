@@ -12,61 +12,73 @@
     </div>
     
     {% if templates %}
-    <div class="row">
-        {% for template in templates %}
-        <div class="col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title">
-                            {{ template.name }}
-                            {% if template.is_builtin %}
-                            <span class="badge bg-success">Built-in Recipe</span>
-                            {% endif %}
-                            {% if template.is_default %}
-                            <span class="badge bg-primary">Default</span>
-                            {% endif %}
-                        </h5>
-                    </div>
-                    
-                    {% if template.description %}
-                    <p class="card-text text-muted">{{ template.description }}</p>
-                    {% endif %}
-                    
-                    <p class="small text-muted">
-                        Created: {{ template.created_at_friendly }}<br>
-                        Updated: {{ template.updated_at_friendly }}
-                    </p>
-                    
-                    <div class="d-grid gap-2 d-md-flex">
-                        {% if template.is_builtin %}
-                        <a href="{{ url_for('templates_view', template_id=template.template_id) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-eye"></i> View
-                        </a>
-                        <button onclick="cloneTemplate({{ template.template_id }})" class="btn btn-sm btn-primary">
-                            <i class="bi bi-files"></i> Clone
-                        </button>
-                        {% else %}
-                        <a href="{{ url_for('templates_view', template_id=template.template_id) }}" class="btn btn-sm btn-primary">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
-                        <button onclick="cloneTemplate({{ template.template_id }})" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-files"></i> Clone
-                        </button>
-                        {% endif %}
-                        <button onclick="useTemplate({{ template.template_id }})" class="btn btn-sm btn-success">
-                            <i class="bi bi-file-earmark-text"></i> Use in Report
-                        </button>
-                        {% if not template.is_builtin %}
-                        <button onclick="deleteTemplate({{ template.template_id }})" class="btn btn-sm btn-danger">
-                            <i class="bi bi-trash"></i> Delete
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Name</th>
+                            <th style="width: 35%;">Description</th>
+                            <th style="width: 15%;">Type</th>
+                            <th style="width: 25%; text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for template in templates %}
+                        <tr>
+                            <td>
+                                <strong>{{ template.name }}</strong>
+                                {% if template.is_default %}
+                                <br><span class="badge badge-soft-primary">Default</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if template.description %}
+                                <span class="text-muted">{{ template.description }}</span>
+                                {% else %}
+                                <span class="text-muted" style="opacity: 0.5;">No description</span>
+                                {% endif %}
+                                <br><small class="text-muted" style="font-size: 0.8rem;">Updated: {{ template.updated_at_friendly }}</small>
+                            </td>
+                            <td>
+                                {% if template.is_builtin %}
+                                <span class="badge badge-soft-success">Built-in Recipe</span>
+                                {% else %}
+                                <span class="badge badge-soft-info">Custom</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: right;">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {% if template.is_builtin %}
+                                    <a href="{{ url_for('templates_view', template_id=template.template_id) }}" class="btn btn-outline-primary" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <button onclick="cloneTemplate({{ template.template_id }})" class="btn btn-outline-primary" title="Clone">
+                                        <i class="bi bi-files"></i>
+                                    </button>
+                                    {% else %}
+                                    <a href="{{ url_for('templates_view', template_id=template.template_id) }}" class="btn btn-outline-primary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button onclick="cloneTemplate({{ template.template_id }})" class="btn btn-outline-primary" title="Clone">
+                                        <i class="bi bi-files"></i>
+                                    </button>
+                                    <button onclick="deleteTemplate({{ template.template_id }})" class="btn btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                <button onclick="useTemplate({{ template.template_id }})" class="btn btn-sm btn-success ms-1" title="Use in Report">
+                                    <i class="bi bi-file-earmark-text"></i> Use
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
-        {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">

@@ -386,7 +386,7 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 
 Test with the provided Slide API key:
 ```
-tk_hlr3e2d2e7x1_kUqKky4bb3zfefnkKlI8h4GbsNeC8Rx6
+tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL
 ```
 
 1. Setup API key via web interface

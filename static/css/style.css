@@ -106,7 +106,7 @@ body {
 /* Buttons */
 .btn {
     font-weight: 500;
-    border-radius: 3px;
+    border-radius: 6px;
     padding: 0.5rem 1rem;
     /* transition: all 0.2s ease; */
 }
@@ -150,6 +150,11 @@ body {
     color: var(--text-primary);
 }
 
+.form-control::placeholder {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
 .form-control:focus, .form-select:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -183,6 +188,44 @@ body {
 .status-info {
     background-color: rgba(59, 130, 246, 0.15);
     color: var(--primary-color);
+}
+
+/* Soft Badges - Replacing harsh Bootstrap badge colors */
+.badge {
+    padding: 0.35rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-soft-success {
+    background-color: rgba(16, 185, 129, 0.12);
+    color: #047857;
+}
+
+.badge-soft-primary {
+    background-color: rgba(30, 136, 229, 0.12);
+    color: #1565c0;
+}
+
+.badge-soft-info {
+    background-color: rgba(14, 165, 233, 0.12);
+    color: #0369a1;
+}
+
+.badge-soft-warning {
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #d97706;
+}
+
+.badge-soft-danger {
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+}
+
+.badge-soft-secondary {
+    background-color: rgba(107, 114, 128, 0.12);
+    color: #4b5563;
 }
 
 /* Progress Bar */

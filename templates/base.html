@@ -35,6 +35,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'email_reports_page' or request.endpoint == 'email_reports_create' or request.endpoint == 'email_reports_edit' or request.endpoint == 'email_reports_log' %}active{% endif %}" href="{{ url_for('email_reports_page') }}">
+                            <i class="bi bi-envelope"></i> Email Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'reports_builder' %}active{% endif %}" href="{{ url_for('reports_builder') }}">
                             <i class="bi bi-file-earmark-text"></i> Build Report
                         </a>
@@ -42,11 +47,6 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint.startswith('templates') %}active{% endif %}" href="{{ url_for('templates_list') }}">
                             <i class="bi bi-layout-text-window-reverse"></i> Templates
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'email_reports_page' %}active{% endif %}" href="{{ url_for('email_reports_page') }}">
-                            <i class="bi bi-envelope"></i> Email Reports
                         </a>
                     </li>
                     <li class="nav-item">
