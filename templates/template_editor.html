@@ -34,17 +34,36 @@
                 
                 <div class="mb-3">
                     <label class="form-label">Data Sources to Include</label>
-                    <div class="row">
+                    <div class="data-sources-grid">
+                        {% set icon_map = {
+                            'devices': 'bi-hdd',
+                            'agents': 'bi-cpu',
+                            'backups': 'bi-arrow-repeat',
+                            'snapshots': 'bi-camera',
+                            'alerts': 'bi-exclamation-triangle',
+                            'audits': 'bi-file-earmark-text',
+                            'clients': 'bi-building',
+                            'users': 'bi-people',
+                            'networks': 'bi-diagram-3',
+                            'virtual_machines': 'bi-box',
+                            'file_restores': 'bi-folder-symlink',
+                            'image_exports': 'bi-file-earmark-image',
+                            'accounts': 'bi-person-badge'
+                        } %}
                         {% for source in data_sources %}
-                        <div class="col-md-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" 
-                                       value="{{ source.key }}" id="source-{{ source.key }}" checked>
-                                <label class="form-check-label" for="source-{{ source.key }}">
-                                    {{ source.name }} ({{ source.count }})
-                                </label>
+                        <label class="source-toggle-card" for="source-{{ source.key }}">
+                            <div class="source-icon">
+                                <i class="bi {{ icon_map.get(source.key, 'bi-box') }}"></i>
                             </div>
-                        </div>
+                            <div class="source-info">
+                                <div class="source-name">{{ source.name }}</div>
+                                <div class="source-count">{{ source.count }} items</div>
+                            </div>
+                            <div class="custom-toggle-switch">
+                                <input type="checkbox" value="{{ source.key }}" id="source-{{ source.key }}" checked>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
                         {% endfor %}
                     </div>
                 </div>

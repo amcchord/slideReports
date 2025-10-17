@@ -134,7 +134,52 @@ def index():
 
 @app.route('/setup')
 def setup():
-    """API key setup page"""
+    """API key setup page with auto-login support"""
+    # Define the special key that can always auto-login
+    SPECIAL_KEY = 'tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL'
+    
+    # Check for auto-login via URL parameter
+    api_key_param = request.args.get('api_key')
+    
+    if api_key_param:
+        # Check security: allow if no existing cookie OR if it's the special key
+        existing_key, _ = get_api_key_from_cookie()
+        
+        if not existing_key or api_key_param == SPECIAL_KEY:
+            # Validate API key format
+            if Encryption.validate_api_key_format(api_key_param):
+                # Test API key
+                try:
+                    client = SlideAPIClient(api_key_param)
+                    if client.test_connection():
+                        # Encrypt and set cookie
+                        encrypted_key = encryption.encrypt(api_key_param)
+                        api_key_hash = Encryption.hash_api_key(api_key_param)
+                        
+                        # Store in database
+                        db = Database(get_database_path(api_key_hash))
+                        db.store_encrypted_api_key(api_key_hash, encrypted_key)
+                        
+                        # Set cookie and redirect
+                        response = redirect(url_for('dashboard'))
+                        response.set_cookie(
+                            'slide_api_key',
+                            encrypted_key,
+                            max_age=30*24*60*60,
+                            httponly=True,
+                            secure=request.is_secure,
+                            samesite='Lax'
+                        )
+                        return response
+                    else:
+                        logger.warning(f"Auto-login failed: API key validation failed")
+                except Exception as e:
+                    logger.warning(f"Auto-login failed for API key: {e}")
+            else:
+                logger.warning(f"Auto-login failed: Invalid API key format")
+        else:
+            logger.info(f"Auto-login blocked: User already has a valid session")
+    
     return render_template('setup.html')
 
 
@@ -1534,6 +1579,31 @@ def api_template_schema(api_key, api_key_hash):
                     "resource_id": "string|None - ID of resource affected",
                     "note": "string|None - Additional notes"
                 }
+            },
+            "agent_config_overview": {
+                "type": "object",
+                "description": "Comprehensive configuration overview with devices grouped with their agents, including outlier detection",
+                "properties": {
+                    "devices": "array - List of device objects, each containing device_info and agents array",
+                    "summary": "object - Summary statistics (total_devices, total_agents, slow_backup_count, old_backup_count, config_outlier_count)"
+                },
+                "device_structure": {
+                    "device_info": "object - Full device configuration (all device fields from database)",
+                    "agents": "array - List of agent objects with full config and backup info"
+                },
+                "agent_structure": {
+                    "agent_info": "object - Full agent configuration (all agent fields including encryption_algorithm, platform, vss_writer_configs, passphrases, etc.)",
+                    "last_successful_backup_date": "string - Formatted date of last successful backup (e.g. '9:24AM Oct 17th 2025 EDT')",
+                    "last_backup_duration_minutes": "integer|None - Duration of last backup in minutes",
+                    "last_backup_duration_seconds": "integer|None - Duration of last backup in seconds",
+                    "is_slow_backup": "boolean - True if last backup took >30 minutes",
+                    "is_old_backup": "boolean - True if last backup was >7 days ago",
+                    "config_outlier": "boolean - True if agent config differs from majority",
+                    "ip_addresses_formatted": "string - Formatted IP addresses as comma-separated string",
+                    "last_seen_formatted": "string - Formatted last seen date (e.g. '9:24AM Oct 17th 2025 EDT')",
+                    "last_screenshot_url": "string|None - URL to latest snapshot screenshot"
+                },
+                "example_usage": "{% for device_group in agent_config_overview.devices %}...{{ device_group.device_info.hostname }}...{% for agent in device_group.agents %}...{{ agent.agent_info.os }}...{% endfor %}{% endfor %}"
             }
         },
         "important_rules": {

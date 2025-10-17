@@ -498,6 +498,87 @@
         </div>
     </div>
 
+    <!-- Agent Configuration Overview -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-gear"></i> Agent Configuration Overview</h3>
+        </div>
+        <div class="card-body">
+            <p>Comprehensive configuration overview with devices grouped with their agents, including outlier detection for backup performance and configuration differences.</p>
+            
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ agent_config_overview }}' }}</code></td>
+                        <td>dict</td>
+                        <td>Contains <code>devices</code> (list) and <code>summary</code> (dict) with configuration and backup metrics</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ agent_config_overview.summary }}' }}</code></td>
+                        <td>dict</td>
+                        <td>Summary with: <code>total_devices</code>, <code>total_agents</code>, <code>slow_backup_count</code> (&gt;30min), <code>old_backup_count</code> (&gt;7d), <code>config_outlier_count</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ agent_config_overview.devices }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of device objects, each containing <code>device_info</code> and <code>agents</code> array</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <p><strong>Device Object Structure:</strong></p>
+            <ul>
+                <li><code>device_info</code> - Full device configuration (all device database fields: device_id, hostname, os, storage, etc.)</li>
+                <li><code>agents</code> - Array of agent objects for this device</li>
+            </ul>
+            
+            <p><strong>Agent Object Structure:</strong></p>
+            <ul>
+                <li><code>agent_info</code> - Full agent configuration (all agent fields: agent_id, hostname, os, os_version, arch, platform, agent_version, encryption_algorithm, firmware_type, manufacturer, sealed, vss_writer_configs, passphrases, ip_addresses, etc.)</li>
+                <li><code>last_successful_backup_date</code> - Formatted date/time of last successful backup (e.g., "9:24AM Oct 17th 2025 EDT")</li>
+                <li><code>last_backup_duration_minutes</code> - Duration in minutes (integer or None)</li>
+                <li><code>last_backup_duration_seconds</code> - Duration in seconds (integer or None)</li>
+                <li><code>is_slow_backup</code> - Boolean, true if backup took &gt;30 minutes</li>
+                <li><code>is_old_backup</code> - Boolean, true if last backup was &gt;7 days ago</li>
+                <li><code>config_outlier</code> - Boolean, true if agent config differs from majority</li>
+                <li><code>ip_addresses_formatted</code> - Formatted IP addresses as comma-separated string</li>
+                <li><code>last_seen_formatted</code> - Formatted last seen date (e.g., "9:24AM Oct 17th 2025 EDT")</li>
+                <li><code>last_screenshot_url</code> - URL to latest snapshot screenshot (or None)</li>
+            </ul>
+            
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '<p>Total: {{ agent_config_overview.summary.total_agents }} agents</p>' }}
+{{ '<p>Slow backups: {{ agent_config_overview.summary.slow_backup_count }}</p>' }}
+
+{{ '{% for device_group in agent_config_overview.devices %}' }}
+  {{ '<h3>Device: {{ device_group.device_info.hostname }}</h3>' }}
+  {{ '<p>OS: {{ device_group.device_info.os }}</p>' }}
+  
+  {{ '{% for agent in device_group.agents %}' }}
+    {{ '<div {% if agent.is_slow_backup %}style="background: red;"{% endif %}>' }}
+      {{ '<h4>{{ agent.agent_info.display_name or agent.agent_info.hostname }}</h4>' }}
+      {{ '<p>OS: {{ agent.agent_info.os }} {{ agent.agent_info.os_version }}</p>' }}
+      {{ '<p>Platform: {{ agent.agent_info.platform }}</p>' }}
+      {{ '<p>Agent Version: {{ agent.agent_info.agent_version }}</p>' }}
+      {{ '<p>Encryption: {{ agent.agent_info.encryption_algorithm }}</p>' }}
+      {{ '<p>Last Backup: {{ agent.last_successful_backup_date }}</p>' }}
+      {{ '<p>Duration: {{ agent.last_backup_duration_minutes }} min</p>' }}
+      {{ '{% if agent.config_outlier %}' }}
+        {{ '<span>Config Outlier</span>' }}
+      {{ '{% endif %}' }}
+    {{ '</div>' }}
+  {{ '{% endfor %}' }}
+{{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
     <!-- Raw Data Arrays -->
     <div class="card mb-4">
         <div class="card-header">

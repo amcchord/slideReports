@@ -7,29 +7,27 @@ A Flask-based web application for generating customizable reports about Slide ba
 
 🌐 **Live Demo:** Check it out at [https://reports.slide.recipes](https://reports.slide.recipes)
 
-## Quick Demo
 
-<video src="docs/QuickDemoSmall.mov" controls width="100%">
-  Your browser does not support the video tag. <a href="docs/QuickDemoSmall.mov">Download the demo video</a>.
-</video>
 
 *Watch a quick walkthrough of creating AI-generated templates and building custom reports.*
 
 ## Features
 
-- **Secure Authentication**: Encrypted API key storage using cookies
+- **Secure Authentication**: Encrypted API key storage using cookies with auto-login support via URL
 - **Admin Panel**: Administrative interface for managing templates and system settings
 - **Data Synchronization**: Manual sync of Slide data with progress tracking
 - **AI-Powered Templates**: Generate custom report templates using natural language descriptions with Claude AI
-- **Template Editor**: Monaco-powered code editor for creating and customizing HTML templates
-- **Flexible Report Builder**: Select data sources, date ranges, and templates
-- **Report Values Preview**: View and validate data before generating reports
+- **Template Editor**: Monaco-powered code editor with syntax highlighting for creating and customizing HTML templates
+- **Flexible Report Builder**: Modern UI with visual data source toggles, date ranges, and template selection
+- **Report Values Preview**: Comprehensive documentation of all available template variables and data structures
+- **Agent Configuration Overview**: Advanced report data showing devices grouped with agents, backup performance metrics, and configuration outlier detection
 - **Email Scheduling**: Schedule automated email reports with customizable frequency (daily, weekly, monthly)
 - **PDF Generation**: Generate and email PDF reports using WeasyPrint
 - **Email Delivery Logs**: Track email delivery status and history
 - **Print/PDF Export**: Generate print-ready reports via browser
 - **Multi-User Support**: Isolated databases per API key
 - **Timezone Support**: Display times in user's preferred timezone (defaults to Eastern)
+- **Modern UI/UX**: Soft badge colors, improved card layouts, visual toggle switches, and icon-based navigation
 - **Custom Fonts**: Includes Datto Din font family for professional branding
 
 ## Architecture
@@ -118,6 +116,25 @@ gunicorn -w 4 -b 0.0.0.0:5000 wsgi:app
 2. Enter your Slide API key (starts with `tk_`)
 3. The key will be encrypted and stored in a secure cookie
 
+#### Auto-Login via URL
+
+You can also auto-login by passing your API key directly in the URL:
+
+```
+https://reports.slide.recipes/setup?api_key=YOUR_API_KEY
+```
+
+**Try the demo:**
+```
+https://reports.slide.recipes/setup?api_key=tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL
+```
+
+This feature:
+- Validates the API key before logging in
+- Only works on first-time setup (unless using the demo key above)
+- Automatically redirects to the dashboard on success
+- Perfect for quick demos and testing
+
 ### Dashboard
 
 - View data summary and sync status
@@ -172,11 +189,28 @@ progress bars, and a table of recent backups sorted by date.
 ### Building Reports
 
 1. Navigate to "Build Report"
-2. Select a template
+2. Select a template from the dropdown
 3. Choose date range (defaults to last 30 days)
-4. Select which data sources to include
-5. Click "Preview Report"
+4. Use the visual toggle switches to select which data sources to include
+   - Each data source shows an icon, name, and item count
+   - Toggle switches provide clear on/off states
+   - All sources are enabled by default
+5. Click "Preview Report" to generate
 6. Print or save as PDF using browser's print function
+
+### Report Values Preview
+
+The Report Values page provides comprehensive documentation for template developers:
+
+- **Complete variable reference**: All available Jinja2 template variables
+- **Data structure documentation**: Detailed schemas for each data source
+- **Usage examples**: Code snippets showing how to use each variable
+- **Agent Configuration Overview**: Advanced dataset with:
+  - Devices grouped with their agents
+  - Backup performance metrics (duration, success/failure)
+  - Configuration outlier detection
+  - Formatted timestamps and IP addresses
+  - Screenshot URLs for snapshot visualization
 
 ### Email Scheduling
 
@@ -379,8 +413,20 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 
 1. **New data source**: Add to `SyncEngine.DATA_SOURCES`
 2. **New API endpoint**: Add to `app.py` with `@require_api_key`
-3. **New template variables**: Update `ReportGenerator._build_context`
+3. **New template variables**: Update `ReportGenerator._build_context` and document in `/api/templates/schema`
 4. **New metric**: Add calculation method in `ReportGenerator`
+5. **New report data structure**: Add to `ReportGenerator` and update Report Values documentation
+
+### UI Customization
+
+The application uses a modern, professional design system:
+
+- **Color Palette**: Soft badge colors for status indicators (success, warning, danger, info)
+- **Toggle Components**: Custom switches with smooth animations
+- **Card Layouts**: Consistent spacing and border styles
+- **Icons**: Bootstrap Icons for visual navigation
+- **Responsive Grid**: Auto-fit grid layouts for data sources and cards
+- **Typography**: Datto Din font family for branding consistency
 
 ## Testing
 
@@ -395,9 +441,37 @@ tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL
 4. Generate a report
 5. Test print/PDF functionality
 
+## Recent Updates
+
+### Version 1.1.0 - UI/UX Improvements
+
+- **Auto-Login Feature**: Added URL parameter support for automatic authentication
+  - Pass `?api_key=YOUR_KEY` to setup page for instant login
+  - Includes security checks to prevent session hijacking
+  - Demo key always allowed for testing
+- **Modern Report Builder UI**: 
+  - Visual data source selection with icon-based toggle cards
+  - Improved grid layout with responsive design
+  - Custom toggle switches with smooth animations
+  - Badge improvements with soft color palette
+- **Enhanced Template Editor**:
+  - Better syntax highlighting
+  - Improved code organization
+  - Real-time validation feedback
+- **Agent Configuration Overview**: New advanced report data structure
+  - Devices grouped with agents for better organization
+  - Backup performance indicators (slow backups >30min, old backups >7 days)
+  - Configuration outlier detection
+  - Pre-formatted timestamps and data
+- **UI Polish**: 
+  - Soft badge colors throughout application
+  - Improved card layouts and spacing
+  - Better navigation flow
+  - Cleaner email reports interface
+
 ## Version
 
-Current version: 1.0.0
+Current version: 1.1.0
 
 ## Support
 
