@@ -220,19 +220,24 @@ const syncManager = {
 // Template Manager
 const templateManager = {
     /**
-     * Generate template with AI
+     * Generate template with AI using streaming
      */
     async generateTemplate(description, dataSources) {
         const button = document.getElementById('generate-button');
-        const previewFrame = document.getElementById('template-preview');
+        const progressDiv = document.getElementById('generation-progress');
         
         if (button) {
             button.disabled = true;
-            button.innerHTML = '<span class="spinner"></span> Generating (1-5 minutes)...';
+            button.innerHTML = '<span class="spinner"></span> Generating...';
+        }
+        
+        if (progressDiv) {
+            progressDiv.style.display = 'block';
         }
         
         try {
-            const response = await fetch('/api/templates/generate', {
+            // Use EventSource for streaming
+            const response = await fetch('/api/templates/generate-stream', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -247,43 +252,56 @@ const templateManager = {
                 throw new Error('Generation failed');
             }
             
-            const data = await response.json();
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedHtml = '';
             
-            // Update the hidden textarea first (always)
-            const htmlField = document.getElementById('template-html');
-            if (htmlField) {
-                htmlField.value = data.html;
-            }
-            
-            // Try to update Monaco editor if it exists
-            // Check both global variables that might be set
+            // Get editor reference
             const editor = window.monacoEditor || window.monacoEditorInstance;
-            if (editor && editor.setValue) {
-                try {
-                    editor.setValue(data.html);
-                    console.log('Updated Monaco editor with generated template');
-                } catch (e) {
-                    console.error('Failed to update Monaco editor:', e);
-                    // Preview will update from textarea
-                }
-            } else {
-                console.log('Monaco editor not ready, updated textarea. Will retry...');
+            const htmlField = document.getElementById('template-html');
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
                 
-                // Wait a bit and try again (Monaco might still be loading)
-                setTimeout(() => {
-                    const retryEditor = window.monacoEditor || window.monacoEditorInstance;
-                    if (retryEditor && retryEditor.setValue) {
-                        retryEditor.setValue(data.html);
-                        console.log('Updated Monaco editor with generated template (retry succeeded)');
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                            
+                            if (data.chunk) {
+                                accumulatedHtml += data.chunk;
+                                
+                                // Update editor in real-time
+                                if (editor && editor.setValue) {
+                                    editor.setValue(accumulatedHtml);
+                                }
+                                if (htmlField) {
+                                    htmlField.value = accumulatedHtml;
+                                }
+                            }
+                            
+                            if (data.done && data.html) {
+                                // Final complete HTML
+                                if (editor && editor.setValue) {
+                                    editor.setValue(data.html);
+                                }
+                                if (htmlField) {
+                                    htmlField.value = data.html;
+                                }
+                                accumulatedHtml = data.html;
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse streaming data:', e);
+                        }
                     }
-                }, 500);
-                
-                // Update preview manually since Monaco isn't ready
-                if (previewFrame) {
-                    const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
-                    previewDoc.open();
-                    previewDoc.write(data.html);
-                    previewDoc.close();
                 }
             }
             
@@ -294,7 +312,233 @@ const templateManager = {
         } finally {
             if (button) {
                 button.disabled = false;
-                button.innerHTML = '<i class="bi bi-magic"></i> Generate Template';
+                button.innerHTML = '<i class="bi bi-magic"></i> Generate Template with AI';
+            }
+            if (progressDiv) {
+                progressDiv.style.display = 'none';
+            }
+        }
+    },
+    
+    /**
+     * Improve existing template with AI
+     */
+    async improveTemplate(improvementRequest, currentHtml) {
+        const button = document.getElementById('improve-button');
+        const previewFrame = document.getElementById('template-preview');
+        
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner"></span> Improving (1-5 minutes)...';
+        }
+        
+        try {
+            const response = await fetch('/api/templates/improve', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    current_html: currentHtml,
+                    improvement_request: improvementRequest
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Improvement failed');
+            }
+            
+            const data = await response.json();
+            
+            // Update the hidden textarea
+            const htmlField = document.getElementById('template-html');
+            if (htmlField) {
+                htmlField.value = data.improved_html;
+            }
+            
+            // Update Monaco editor
+            const editor = window.monacoEditor || window.monacoEditorInstance;
+            if (editor && editor.setValue) {
+                editor.setValue(data.improved_html);
+            }
+            
+            // Clear the improvement prompt
+            const improvePrompt = document.getElementById('improve-prompt');
+            if (improvePrompt) {
+                improvePrompt.value = '';
+            }
+            
+            utils.showToast('Template improved successfully', 'success');
+        } catch (error) {
+            console.error('Improvement error:', error);
+            utils.showToast('Improvement failed: ' + error.message, 'danger');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<i class="bi bi-magic"></i> Improve Template with AI';
+            }
+        }
+    },
+    
+    /**
+     * Test template with real data
+     */
+    async testWithRealData(htmlContent, startDate, endDate, dataSources, clientId) {
+        const button = document.getElementById('test-button');
+        const previewFrame = document.getElementById('template-preview');
+        const errorDisplay = document.getElementById('error-display');
+        const previewModeBadge = document.getElementById('preview-mode-badge');
+        const previewDescription = document.getElementById('preview-description');
+        
+        // Hide any previous errors
+        if (errorDisplay) {
+            errorDisplay.style.display = 'none';
+        }
+        
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner"></span> Testing...';
+        }
+        
+        try {
+            const response = await fetch('/api/templates/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    html_content: htmlContent,
+                    start_date: startDate,
+                    end_date: endDate,
+                    data_sources: dataSources,
+                    client_id: clientId
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Display test results
+                if (previewFrame) {
+                    const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+                    previewDoc.open();
+                    previewDoc.write(data.html);
+                    previewDoc.close();
+                }
+                
+                // Update badge
+                if (previewModeBadge) {
+                    previewModeBadge.className = 'badge bg-success';
+                    previewModeBadge.textContent = 'Real Data Test';
+                }
+                
+                if (previewDescription) {
+                    previewDescription.textContent = `Test results with data from ${startDate} to ${endDate}.`;
+                }
+                
+                utils.showToast('Template tested successfully with real data', 'success');
+            } else {
+                // Show error
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            console.error('Test error:', error);
+            
+            // Show error display with auto-fix option
+            if (errorDisplay) {
+                const errorMessage = document.getElementById('error-message');
+                if (errorMessage) {
+                    errorMessage.textContent = error.message;
+                }
+                errorDisplay.style.display = 'block';
+                
+                // Store error for auto-fix
+                if (window.lastTestError !== undefined) {
+                    window.lastTestError = error.message;
+                }
+            }
+            
+            utils.showToast('Template test failed: ' + error.message, 'danger');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<i class="bi bi-play-circle"></i> Test with Real Data';
+            }
+        }
+    },
+    
+    /**
+     * Fix template error with AI
+     */
+    async fixTemplateError(htmlContent, errorMessage) {
+        const button = document.getElementById('auto-fix-button');
+        const errorDisplay = document.getElementById('error-display');
+        
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner"></span> Fixing (1-5 minutes)...';
+        }
+        
+        try {
+            const response = await fetch('/api/templates/fix-error', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    html_content: htmlContent,
+                    error_message: errorMessage
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Fix failed');
+            }
+            
+            const data = await response.json();
+            
+            // Update the hidden textarea
+            const htmlField = document.getElementById('template-html');
+            if (htmlField) {
+                htmlField.value = data.fixed_html;
+            }
+            
+            // Update Monaco editor
+            const editor = window.monacoEditor || window.monacoEditorInstance;
+            if (editor && editor.setValue) {
+                editor.setValue(data.fixed_html);
+            }
+            
+            // Hide error display
+            if (errorDisplay) {
+                errorDisplay.style.display = 'none';
+            }
+            
+            utils.showToast('Template fixed! ' + data.explanation, 'success');
+            
+            // Automatically re-test with the same parameters
+            const startDate = document.getElementById('test-start-date').value;
+            const endDate = document.getElementById('test-end-date').value;
+            if (startDate && endDate) {
+                const dataSources = [];
+                document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                    dataSources.push(cb.value);
+                });
+                
+                utils.showToast('Re-testing with fixed template...', 'info');
+                setTimeout(() => {
+                    this.testWithRealData(data.fixed_html, startDate, endDate, dataSources, null);
+                }, 1000);
+            }
+        } catch (error) {
+            console.error('Fix error:', error);
+            utils.showToast('Auto-fix failed: ' + error.message, 'danger');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<i class="bi bi-magic"></i> Auto-fix with AI';
             }
         }
     },
@@ -405,9 +649,40 @@ const reportManager = {
     }
 };
 
+// Info Banner Manager
+const bannerManager = {
+    /**
+     * Initialize banner close functionality
+     */
+    init() {
+        const banner = document.getElementById('infoBanner');
+        const closeButton = document.getElementById('closeBanner');
+        
+        if (!banner || !closeButton) {
+            return;
+        }
+        
+        // Check if banner was previously closed in this session
+        if (sessionStorage.getItem('infoBannerClosed') === 'true') {
+            banner.classList.add('hidden');
+            document.body.classList.add('banner-closed');
+        }
+        
+        // Handle close button click
+        closeButton.addEventListener('click', () => {
+            banner.classList.add('hidden');
+            document.body.classList.add('banner-closed');
+            sessionStorage.setItem('infoBannerClosed', 'true');
+        });
+    }
+};
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Slide Reports System initialized');
+    
+    // Initialize banner close functionality
+    bannerManager.init();
     
     // Auto-hide alerts after 5 seconds
     document.querySelectorAll('.alert:not(.alert-permanent)').forEach(alert => {
@@ -423,6 +698,7 @@ window.slideReports = {
     utils,
     syncManager,
     templateManager,
-    reportManager
+    reportManager,
+    bannerManager
 };
 

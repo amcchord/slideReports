@@ -306,6 +306,90 @@
         </div>
     </div>
 
+    <!-- Agent Snapshot Totals -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-collection"></i> Agent Snapshot Totals</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ agent_snapshot_totals }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of snapshot totals per agent. Each has: <code>agent_name</code>, <code>local_count</code>, <code>cloud_count</code></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '{% for agent in agent_snapshot_totals %}' }}
+  {{ '{{ agent.agent_name }}: {{ agent.local_count }} local, {{ agent.cloud_count }} cloud' }}
+{{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
+    <!-- Snapshot Audit Data -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-camera-fill"></i> Snapshot Audit Data</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ agent_snapshot_audit }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of agents with complete snapshot audit data. Each agent has: <code>agent_name</code>, <code>agent_id</code>, <code>snapshots</code> (array of snapshot objects)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><strong>Snapshot Object Structure (within each agent):</strong></p>
+            <ul>
+                <li><code>date_formatted</code> - Formatted snapshot date/time in user timezone</li>
+                <li><code>location_local</code> - Boolean, true if snapshot exists locally</li>
+                <li><code>location_cloud</code> - Boolean, true if snapshot exists in cloud</li>
+                <li><code>verify_boot_passed</code> - Boolean, true if screenshot verification status is "success"</li>
+                <li><code>verify_fs_passed</code> - Boolean, true if filesystem verification status is "success"</li>
+                <li><code>screenshot_url</code> - URL to verification screenshot (or None)</li>
+            </ul>
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '{% for agent_data in agent_snapshot_audit %}' }}
+  {{ '<h3>{{ agent_data.agent_name }}</h3>' }}
+  {{ '<table>' }}
+    {{ '<tr>' }}
+      {{ '<th>Date</th><th>Location</th><th>Verified</th>' }}
+    {{ '</tr>' }}
+    {{ '{% for snapshot in agent_data.snapshots %}' }}
+    {{ '<tr>' }}
+      {{ '<td>{{ snapshot.date_formatted }}</td>' }}
+      {{ '<td>' }}
+        {{ '{% if snapshot.location_local %}Local {% endif %}' }}
+        {{ '{% if snapshot.location_cloud %}Cloud{% endif %}' }}
+      {{ '</td>' }}
+      {{ '<td>' }}
+        {{ '{% if snapshot.verify_boot_passed %}✓{% endif %}' }}
+      {{ '</td>' }}
+    {{ '</tr>' }}
+    {{ '{% endfor %}' }}
+  {{ '</table>' }}
+{{ '{% endfor %}' }}</code></pre>
+        </div>
+    </div>
+
     <!-- Virtualization Metrics -->
     <div class="card mb-4">
         <div class="card-header">
@@ -407,7 +491,9 @@
                 <li><code>total_backups</code> - Total number of backups that occurred this day</li>
                 <li><code>successful_backups</code> - Number of successful backups</li>
                 <li><code>failed_backups</code> - Number of failed backups</li>
-                <li><code>snapshots_remaining</code> - Number of snapshots retained (not deleted by retention)</li>
+                <li><code>snapshots_created</code> - Number of snapshots created on this day</li>
+                <li><code>local_snapshots</code> - Number of local snapshots existing for this day</li>
+                <li><code>cloud_snapshots</code> - Number of cloud snapshots existing for this day</li>
                 <li><code>completion_color</code> - Color indicator: 'green', 'yellow', 'red', or 'none'</li>
                 <li><code>has_snapshot</code> - Boolean indicating if snapshot exists from this day</li>
             </ul>
@@ -465,9 +551,12 @@
     <!-- Storage Growth -->
     <div class="card mb-4">
         <div class="card-header">
-            <h3 class="mb-0"><i class="bi bi-graph-up"></i> Storage Growth Metrics</h3>
+            <h3 class="mb-0"><i class="bi bi-graph-up"></i> Storage Growth Metrics <span class="badge bg-warning text-dark">Deprecated</span></h3>
         </div>
         <div class="card-body">
+            <div class="alert alert-warning">
+                <strong>Note:</strong> Storage Growth metrics have been removed from built-in templates (Weekly, Monthly, Quarterly) but are still available for custom templates.
+            </div>
             <table class="table">
                 <thead>
                     <tr>

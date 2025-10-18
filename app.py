@@ -2,6 +2,7 @@
 Slide Reports System - Main Flask Application
 """
 import os
+import json
 import logging
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, make_response
@@ -120,6 +121,19 @@ def get_validated_timezone(db: Database) -> str:
         # Update database with valid timezone
         db.set_preference('timezone', 'America/New_York')
         return 'America/New_York'
+
+
+# Context Processors
+@app.context_processor
+def inject_custom_logo():
+    """Make custom logo available to all templates"""
+    api_key, api_key_hash = get_api_key_from_cookie()
+    if api_key_hash:
+        db = Database(get_database_path(api_key_hash))
+        custom_logo = db.get_preference('custom_logo_base64')
+        if custom_logo:
+            return {'custom_logo_url': custom_logo}
+    return {'custom_logo_url': None}
 
 
 # Routes
@@ -593,6 +607,177 @@ def api_templates_generate(api_key, api_key_hash):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/templates/generate-stream', methods=['POST'])
+@require_api_key
+def api_templates_generate_stream(api_key, api_key_hash):
+    """Generate template with AI using streaming"""
+    data = request.get_json()
+    description = data.get('description')
+    data_sources = data.get('data_sources', [])
+    
+    if not description:
+        return jsonify({'error': 'Description required'}), 400
+    
+    def generate():
+        """Generator function for streaming response"""
+        try:
+            # Call Claude API with streaming enabled
+            data_sources_str = ", ".join(data_sources) if data_sources else "all data sources"
+            
+            rules_text = "\n".join([f"- {key}: {value}" for key, value in ai_generator.template_schema['important_rules'].items()])
+            
+            system_prompt = f"""You are an expert at creating professional, print-ready HTML report templates using Jinja2.
+
+CRITICAL SAFETY RULES - FOLLOW THESE EXACTLY:
+{rules_text}
+
+Generate a complete, self-contained HTML document with embedded CSS that:
+1. Is optimized for printing to PDF
+2. Has a clean, professional design
+3. Uses modern CSS (flexbox, grid) for layouts
+4. Includes proper page break handling for printing
+5. Has clear section headings and data visualization
+6. Uses SAFE Jinja2 template syntax
+
+Return ONLY the complete HTML document, no explanations."""
+
+            user_prompt = f"""Create an HTML report template based on this description:
+
+{description}
+
+The template will use these data sources: {data_sources_str}
+
+Include SAFE Jinja2 syntax for dynamic content. Make it professional and print-ready."""
+
+            accumulated_text = ""
+            
+            # Stream from Claude
+            with ai_generator.client.messages.stream(
+                model=ai_generator.MODEL,
+                max_tokens=16000,
+                system=system_prompt,
+                messages=[{
+                    "role": "user",
+                    "content": user_prompt
+                }]
+            ) as stream:
+                for text in stream.text_stream:
+                    accumulated_text += text
+                    # Send chunk to client
+                    yield f"data: {json.dumps({'chunk': text, 'done': False})}\n\n"
+            
+            # Clean up if Claude added markdown code blocks
+            html_content = accumulated_text.strip()
+            if html_content.startswith('```html'):
+                html_content = html_content[7:]
+            if html_content.startswith('```'):
+                html_content = html_content[3:]
+            if html_content.endswith('```'):
+                html_content = html_content[:-3]
+            html_content = html_content.strip()
+            
+            # Send final complete HTML
+            yield f"data: {json.dumps({'html': html_content, 'done': True})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Streaming template generation failed: {e}")
+            yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+    
+    return app.response_class(generate(), mimetype='text/event-stream')
+
+
+@app.route('/api/templates/improve', methods=['POST'])
+@require_api_key
+def api_templates_improve(api_key, api_key_hash):
+    """Improve existing template with AI"""
+    data = request.get_json()
+    current_html = data.get('current_html')
+    improvement_request = data.get('improvement_request')
+    
+    if not current_html:
+        return jsonify({'error': 'Current HTML required'}), 400
+    
+    if not improvement_request:
+        return jsonify({'error': 'Improvement request required'}), 400
+    
+    try:
+        improved_html = ai_generator.improve_template(current_html, improvement_request)
+        return jsonify({'improved_html': improved_html})
+    except Exception as e:
+        logger.error(f"Template improvement failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/templates/test', methods=['POST'])
+@require_api_key
+def api_templates_test(api_key, api_key_hash):
+    """Test template with real user data"""
+    data = request.get_json()
+    html_content = data.get('html_content')
+    start_date_str = data.get('start_date')
+    end_date_str = data.get('end_date')
+    data_sources = data.get('data_sources', [])
+    client_id = data.get('client_id')
+    
+    if not html_content:
+        return jsonify({'error': 'HTML content required'}), 400
+    
+    # Parse dates
+    start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+    end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+    
+    # Generate report with error handling
+    db = Database(get_database_path(api_key_hash))
+    generator = ReportGenerator(db)
+    
+    try:
+        html = generator.generate_report(
+            html_content,
+            start_date,
+            end_date,
+            data_sources,
+            logo_url='/static/img/logo.png',
+            client_id=client_id,
+            ai_generator=ai_generator
+        )
+        return jsonify({'success': True, 'html': html})
+    except Exception as e:
+        logger.error(f"Template test failed: {e}")
+        # Return detailed error for debugging
+        import traceback
+        error_detail = traceback.format_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'error_detail': error_detail
+        }), 400
+
+
+@app.route('/api/templates/fix-error', methods=['POST'])
+@require_api_key
+def api_templates_fix_error(api_key, api_key_hash):
+    """Fix template error with AI"""
+    data = request.get_json()
+    html_content = data.get('html_content')
+    error_message = data.get('error_message')
+    
+    if not html_content:
+        return jsonify({'error': 'HTML content required'}), 400
+    
+    if not error_message:
+        return jsonify({'error': 'Error message required'}), 400
+    
+    try:
+        fixed_html, explanation = ai_generator.fix_template_error(html_content, error_message)
+        return jsonify({
+            'fixed_html': fixed_html,
+            'explanation': explanation
+        })
+    except Exception as e:
+        logger.error(f"Template error fix failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/reports/builder')
 @require_api_key
 def reports_builder(api_key, api_key_hash):
@@ -740,6 +925,88 @@ def api_set_timezone(api_key, api_key_hash):
     db.set_preference('timezone', timezone)
     
     return jsonify({'success': True, 'timezone': timezone})
+
+
+@app.route('/api/preferences/logo', methods=['POST'])
+@require_api_key
+def api_upload_logo(api_key, api_key_hash):
+    """Upload and save custom logo"""
+    import base64
+    import imghdr
+    
+    if 'logo' not in request.files:
+        return jsonify({'error': 'No logo file provided'}), 400
+    
+    file = request.files['logo']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Read file data
+    file_data = file.read()
+    
+    # Validate file size (2MB max)
+    if len(file_data) > 2 * 1024 * 1024:
+        return jsonify({'error': 'File size exceeds 2MB limit'}), 400
+    
+    # Validate file type
+    file_type = imghdr.what(None, h=file_data)
+    allowed_types = ['png', 'jpeg', 'gif', 'svg']
+    
+    # Special handling for SVG (imghdr doesn't detect SVG)
+    if file_type is None:
+        if file_data.startswith(b'<svg') or b'<svg' in file_data[:1024]:
+            file_type = 'svg'
+    
+    if file_type not in allowed_types:
+        return jsonify({'error': 'Invalid file type. Allowed: PNG, JPG, GIF, SVG'}), 400
+    
+    # Determine MIME type
+    mime_types = {
+        'png': 'image/png',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'svg': 'image/svg+xml'
+    }
+    mime_type = mime_types.get(file_type, 'image/png')
+    
+    # Convert to base64
+    base64_data = base64.b64encode(file_data).decode('utf-8')
+    data_uri = f'data:{mime_type};base64,{base64_data}'
+    
+    # Store in database
+    db = Database(get_database_path(api_key_hash))
+    db.set_preference('custom_logo_base64', data_uri)
+    
+    logger.info(f"Custom logo uploaded for user {api_key_hash[:8]}")
+    
+    return jsonify({'success': True, 'message': 'Logo uploaded successfully', 'logo_url': data_uri})
+
+
+@app.route('/api/preferences/logo', methods=['DELETE'])
+@require_api_key
+def api_delete_logo(api_key, api_key_hash):
+    """Reset to default logo"""
+    db = Database(get_database_path(api_key_hash))
+    
+    # Delete the custom logo preference
+    with db.get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM user_preferences WHERE key = ?", ('custom_logo_base64',))
+    
+    logger.info(f"Custom logo deleted for user {api_key_hash[:8]}")
+    
+    return jsonify({'success': True, 'message': 'Logo reset to default'})
+
+
+@app.route('/logo-settings')
+@require_api_key
+def logo_settings(api_key, api_key_hash):
+    """Logo management page"""
+    db = Database(get_database_path(api_key_hash))
+    custom_logo = db.get_preference('custom_logo_base64')
+    
+    return render_template('logo_settings.html', custom_logo=custom_logo)
 
 
 @app.route('/report-values')
@@ -1362,6 +1629,26 @@ def api_template_schema(api_key, api_key_hash):
                     "used": "Used storage (formatted)",
                     "total": "Total storage (formatted)",
                     "percent": "Usage percentage (0-100)"
+                }
+            },
+            "agent_snapshot_totals": {
+                "type": "array",
+                "description": "List of snapshot totals per agent showing local and cloud snapshot counts",
+                "item_type": "object",
+                "properties": {
+                    "agent_name": "Agent display name",
+                    "local_count": "Number of snapshots in local storage",
+                    "cloud_count": "Number of snapshots in cloud storage"
+                }
+            },
+            "agent_snapshot_audit": {
+                "type": "array",
+                "description": "Complete snapshot audit data grouped by agent with verification status and location details",
+                "item_type": "object",
+                "properties": {
+                    "agent_name": "Agent display name",
+                    "agent_id": "Agent ID",
+                    "snapshots": "Array of snapshot objects with: date_formatted (string), location_local (boolean), location_cloud (boolean), verify_boot_passed (boolean), verify_fs_passed (boolean), screenshot_url (string|None)"
                 }
             },
             "total_vms": {

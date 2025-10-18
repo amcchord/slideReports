@@ -15,8 +15,14 @@ A Flask-based web application for generating customizable reports about Slide ba
 
 - **Secure Authentication**: Encrypted API key storage using cookies with auto-login support via URL
 - **Admin Panel**: Administrative interface for managing templates and system settings
-- **Data Synchronization**: Manual sync of Slide data with progress tracking
+- **Auto-Sync**: Automatic data synchronization at configurable intervals (hourly by default)
+- **Data Synchronization**: Manual and automatic sync of Slide data with progress tracking
 - **AI-Powered Templates**: Generate custom report templates using natural language descriptions with Claude AI
+  - Streaming generation for real-time feedback
+  - Template improvement suggestions
+  - Automatic error detection and fixing
+  - Template testing before deployment
+  - Clone existing templates
 - **Template Editor**: Monaco-powered code editor with syntax highlighting for creating and customizing HTML templates
 - **Flexible Report Builder**: Modern UI with visual data source toggles, date ranges, and template selection
 - **Report Values Preview**: Comprehensive documentation of all available template variables and data structures
@@ -27,6 +33,7 @@ A Flask-based web application for generating customizable reports about Slide ba
 - **Print/PDF Export**: Generate print-ready reports via browser
 - **Multi-User Support**: Isolated databases per API key
 - **Timezone Support**: Display times in user's preferred timezone (defaults to Eastern)
+- **Custom Logo Upload**: Upload and use custom logos in reports (replaces default Slide logo)
 - **Modern UI/UX**: Soft badge colors, improved card layouts, visual toggle switches, and icon-based navigation
 - **Custom Fonts**: Includes Datto Din font family for professional branding
 
@@ -83,6 +90,9 @@ A Flask-based web application for generating customizable reports about Slide ba
    SMTP_PASSWORD=<your-app-password>
    SMTP_FROM_EMAIL=<sender-email@example.com>
    SMTP_FROM_NAME=Slide Reports
+   
+   # Admin (optional - for admin panel access)
+   ADMIN_PASS=<secure-admin-password>
    ```
 
 5. **Create data directory**:
@@ -139,13 +149,26 @@ This feature:
 
 - View data summary and sync status
 - Change timezone preference
+- Configure auto-sync settings
+- Upload custom logo
 - Quick access to report builder and templates
 
+![Dashboard](docs/dashboard.png)
+
 ### Data Synchronization
+
+#### Manual Sync
 
 1. Click "Sync Now" on the dashboard
 2. Watch real-time progress as data sources are synced
 3. All data is stored locally in SQLite for fast report generation
+
+#### Auto-Sync
+
+1. Enable auto-sync from the dashboard settings
+2. Configure sync frequency (default: 1 hour)
+3. System automatically syncs data in the background
+4. View next scheduled sync time on the dashboard
 
 Data sources synced:
 - Devices
@@ -164,13 +187,16 @@ Data sources synced:
 
 ### Creating Templates
 
-#### Option 1: AI Generation
+![Templates](docs/templates.png)
+
+#### Option 1: AI Generation with Streaming
 
 1. Navigate to Templates → Create New Template
 2. Select data sources to include
 3. Describe your desired template in natural language
 4. Click "Generate Template with AI"
-5. Preview and save the template
+5. Watch the template generate in real-time with streaming output
+6. Preview and save the template
 
 Example description:
 ```
@@ -186,9 +212,17 @@ progress bars, and a table of recent backups sorted by date.
 3. Use Jinja2 template syntax for dynamic data
 4. Preview changes in real-time
 
+#### Advanced Template Features
+
+- **AI Improvements**: Ask Claude to improve specific aspects of your template
+- **Error Detection**: Automatically detect and fix template errors
+- **Template Testing**: Test templates with real data before saving
+- **Clone Templates**: Duplicate existing templates as a starting point
+- **Live Preview**: See changes in real-time as you edit
+
 ### Building Reports
 
-1. Navigate to "Build Report"
+1. Navigate to "One-Off Report"
 2. Select a template from the dropdown
 3. Choose date range (defaults to last 30 days)
 4. Use the visual toggle switches to select which data sources to include
@@ -197,6 +231,8 @@ progress bars, and a table of recent backups sorted by date.
    - All sources are enabled by default
 5. Click "Preview Report" to generate
 6. Print or save as PDF using browser's print function
+
+![One-Off Report Builder](docs/one-off-report.png)
 
 ### Report Values Preview
 
@@ -231,6 +267,23 @@ Schedule automated report delivery via email:
 6. View delivery history in the Email Log
 
 Reports are automatically generated as PDFs and emailed to recipients based on the schedule.
+
+![Email Reports](docs/email-reports.png)
+
+![Create Email Schedule](docs/create-email.png)
+
+### Custom Logo Upload
+
+Personalize your reports with a custom logo:
+
+1. Navigate to "Logo Settings" from the dashboard
+2. Click "Choose File" to select your logo image
+3. Preview the logo before uploading
+4. Click "Upload Logo" to save
+5. Your custom logo will replace the default Slide logo in all reports
+6. Delete the custom logo anytime to restore the default
+
+Supported formats: PNG, JPG, SVG (recommended size: 200x50px)
 
 ## Data Sources
 
@@ -280,13 +333,20 @@ Each data source tracks specific metrics:
 - `POST /api/templates` - Create template
 - `PATCH /api/templates/{id}` - Update template
 - `DELETE /api/templates/{id}` - Delete template
+- `POST /api/templates/{id}/clone` - Clone existing template
 - `POST /api/templates/generate` - Generate with AI
+- `POST /api/templates/generate-stream` - Generate with AI (streaming)
+- `POST /api/templates/improve` - Improve template with AI
+- `POST /api/templates/test` - Test template with real data
+- `POST /api/templates/fix-error` - Automatically fix template errors
 
 ### Admin
 
 - `GET /admin/login` - Admin login page
 - `POST /api/admin/login` - Admin authentication
 - `GET /admin` - Admin dashboard
+- `POST /admin/api/keys/{api_key_hash}/auto-sync` - Toggle auto-sync for user
+- `DELETE /admin/api/keys/{api_key_hash}` - Delete user data
 - `DELETE /admin/api/email-schedules/{api_key_hash}/{id}` - Delete user's email schedule
 
 ### Reports
@@ -312,6 +372,11 @@ Each data source tracks specific metrics:
 ### Preferences
 
 - `POST /api/preferences/timezone` - Set timezone
+- `POST /api/preferences/auto-sync` - Toggle auto-sync and set frequency
+- `GET /api/sync/next` - Get next scheduled sync time
+- `POST /api/preferences/logo` - Upload custom logo
+- `DELETE /api/preferences/logo` - Delete custom logo
+- `GET /logo-settings` - Logo settings page
 
 ## Database Schema
 
@@ -374,7 +439,14 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 │   ├── sync.py           # Data synchronization
 │   ├── templates.py      # Template management
 │   ├── ai_generator.py   # Claude integration
-│   └── report_generator.py # Report generation
+│   ├── report_generator.py # Report generation
+│   ├── scheduler.py      # Auto-sync scheduler
+│   ├── email_scheduler.py # Email report scheduler
+│   ├── email_schedules.py # Email schedule management
+│   ├── email_service.py  # Email sending service
+│   ├── pdf_service.py    # PDF generation
+│   ├── admin_utils.py    # Admin utilities
+│   └── builtin_templates.py # Default templates
 ├── templates/            # Jinja2 HTML templates
 │   ├── base.html
 │   ├── setup.html
@@ -387,6 +459,7 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 │   ├── email_reports_create.html
 │   ├── email_reports_edit.html
 │   ├── email_log.html
+│   ├── logo_settings.html
 │   ├── admin_login.html
 │   ├── admin.html
 │   └── error.html
@@ -404,6 +477,12 @@ Templates are stored in separate database: `{api_key_hash}_templates.db`
 │       └── dattoDin/     # Datto Din font family
 ├── docs/                 # Documentation and media
 │   ├── QuickDemoSmall.mov  # Quick demo video
+│   ├── dashboard.png
+│   ├── templates.png
+│   ├── one-off-report.png
+│   ├── email-reports.png
+│   ├── create-email.png
+│   ├── testReport.html   # Sample report
 │   ├── slideAPI.json
 │   └── slideLogoTemplate.png
 └── data/                 # SQLite databases (not in git)
@@ -435,6 +514,8 @@ Test with the provided Slide API key:
 tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL
 ```
 
+**View a sample report:** [docs/testReport.html](docs/testReport.html)
+
 1. Setup API key via web interface
 2. Sync all data sources
 3. Create a template
@@ -442,6 +523,33 @@ tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL
 5. Test print/PDF functionality
 
 ## Recent Updates
+
+### Version 1.2.0 - AI Enhancements, Auto-Sync, and Custom Branding
+
+- **Auto-Sync Feature**: Automatic background data synchronization
+  - Configurable sync frequency (default: 1 hour)
+  - Per-user enable/disable toggle
+  - Dashboard displays next scheduled sync time
+  - Admin can manage auto-sync for all users
+- **AI-Powered Template Improvements**:
+  - Streaming generation with real-time feedback
+  - Ask Claude to improve specific aspects of templates
+  - Automatic error detection and fixing
+  - Test templates with real data before deployment
+  - Clone existing templates
+- **Custom Logo Upload**:
+  - Upload custom logos to replace default Slide branding
+  - Supports PNG, JPG, SVG formats
+  - Logo appears in all generated reports
+  - Easy delete/restore functionality
+- **Enhanced Template Editor**:
+  - Live streaming generation
+  - Improved error handling
+  - Better Monaco editor integration
+- **Admin Enhancements**:
+  - Manage user auto-sync settings
+  - Delete user data and schedules
+  - Enhanced user management interface
 
 ### Version 1.1.0 - UI/UX Improvements
 
@@ -471,7 +579,7 @@ tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL
 
 ## Version
 
-Current version: 1.1.0
+Current version: 1.2.0
 
 ## Support
 

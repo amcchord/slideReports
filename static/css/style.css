@@ -676,3 +676,82 @@ body {
     }
 }
 
+/* Info Banner */
+.info-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background-color: #fef3c7;
+    border-top: 1px solid #fbbf24;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    z-index: 1000;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.info-banner.hidden {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.info-banner-content {
+    max-width: 1300px;
+    margin: 0 auto;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #78350f;
+    position: relative;
+}
+
+.info-banner-close {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #78350f;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.info-banner-close:hover {
+    background-color: rgba(120, 53, 15, 0.1);
+}
+
+.info-banner-close:focus {
+    outline: 2px solid #78350f;
+    outline-offset: 2px;
+}
+
+.info-banner a {
+    color: #1565c0;
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.info-banner a:hover {
+    color: #0d47a1;
+}
+
+/* Add padding to body to prevent content from being hidden behind fixed banner */
+body {
+    padding-bottom: 4rem;
+}
+
+body.banner-closed {
+    padding-bottom: 0;
+}
+

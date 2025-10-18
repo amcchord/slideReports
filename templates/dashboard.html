@@ -44,16 +44,16 @@
         <div class="card-body">
             <div class="d-grid gap-2 d-md-flex">
                 <a href="{{ url_for('reports_builder') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-file-earmark-plus"></i> Build New Report
+                    <i class="bi bi-file-earmark-plus"></i> Create One-Off Report
                 </a>
-                <a href="{{ url_for('email_reports_create') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-envelope-plus"></i> Schedule Email Report
-                </a>
-                <a href="{{ url_for('templates_list') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-layout-text-window-reverse"></i> Manage Templates
+                <a href="{{ url_for('email_reports_page') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-envelope-plus"></i> Scheduled Reports
                 </a>
                 <a href="{{ url_for('templates_new') }}" class="btn btn-outline-primary">
                     <i class="bi bi-magic"></i> Create Template with AI
+                </a>
+                <a href="{{ url_for('logo_settings') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-image"></i> Change Logo
                 </a>
             </div>
         </div>

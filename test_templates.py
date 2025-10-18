@@ -36,7 +36,7 @@ def test_templates():
             print(f"     Description: {template['description']}")
         
         # Verify we have the expected templates
-        expected_templates = ['Weekly Report', 'Monthly Report', 'Quarterly Report', 'Configs']
+        expected_templates = ['Weekly Report', 'Monthly Report', 'Quarterly Report', 'System Data and Configuration']
         for expected in expected_templates:
             if expected in template_names:
                 print(f"✓ Found '{expected}' template")
@@ -76,18 +76,18 @@ def test_templates():
                 print(f"  ✗ Missing '{section}' variable")
                 return False
         
-        # Check Configs template for agent_config_overview
-        configs_template = [t for t in templates if t['name'] == 'Configs'][0]
+        # Check System Data and Configuration template for agent_config_overview
+        configs_template = [t for t in templates if t['name'] == 'System Data and Configuration'][0]
         configs_html = configs_template['html_content']
         
-        print("\nChecking Configs template content for variables:")
+        print("\nChecking System Data and Configuration template content for variables:")
         if 'agent_config_overview' in configs_html:
             print(f"  ✓ Contains 'agent_config_overview' variable")
         else:
             print(f"  ✗ Missing 'agent_config_overview' variable")
             return False
         
-        # Check for outlier detection features in Configs template
+        # Check for outlier detection features in System Data and Configuration template
         configs_features = ['is_slow_backup', 'is_old_backup', 'config_outlier']
         for feature in configs_features:
             if feature in configs_html:
