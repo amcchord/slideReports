@@ -7,6 +7,8 @@ A Flask-based web application for generating customizable reports about Slide ba
 
 🌐 **Live Demo:** Check it out at [https://reports.slide.recipes](https://reports.slide.recipes)
 
+🔑 **Test API Key:** `tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL`
+
 
 
 *Watch a quick walkthrough of creating AI-generated templates and building custom reports.*
