@@ -58,7 +58,7 @@ if not postmark_api_key:
     email_scheduler = None
 else:
     email_service = EmailService(postmark_api_key)
-    email_scheduler = EmailScheduler(email_service)
+    email_scheduler = EmailScheduler(email_service, ai_generator)
 
 
 # Helper Functions

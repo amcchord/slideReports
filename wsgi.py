@@ -9,7 +9,7 @@ sys.path.insert(0, "/var/www/reports.slide.recipes/")
 # Explicitly load .env file with absolute path for Apache/mod_wsgi
 load_dotenv("/var/www/reports.slide.recipes/.env")
 
-from app import app, auto_sync_scheduler, logger
+from app import app, auto_sync_scheduler, email_scheduler, logger
 
 # Start auto-sync scheduler for WSGI/production
 try:
@@ -17,6 +17,14 @@ try:
     logger.info("Auto-sync scheduler initialized in WSGI mode")
 except Exception as e:
     logger.error(f"Failed to start auto-sync scheduler in WSGI: {e}")
+
+# Start email scheduler if configured
+if email_scheduler:
+    try:
+        email_scheduler.start()
+        logger.info("Email scheduler initialized in WSGI mode")
+    except Exception as e:
+        logger.error(f"Failed to start email scheduler in WSGI: {e}")
 
 # WSGI expects an 'application' variable
 application = app

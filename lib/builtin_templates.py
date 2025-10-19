@@ -840,24 +840,32 @@ def _get_base_template_html() -> str:
         
         .progress-bar {
             width: 100%;
-            height: 28px;
+            height: 40px;
             background: #e5e7eb;
             border-radius: 4px;
             overflow: hidden;
             margin-top: 8px;
+            position: relative;
         }
         
         .progress-fill {
             height: 100%;
             background: #3b82f6;
+        }
+        
+        .progress-text {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 11px;
+            padding-right: 16px;
+            color: black;
+            font-size: 18px;
             font-weight: 600;
-            padding: 0 8px;
             white-space: nowrap;
+           
         }
         
         .summary-text {
@@ -969,14 +977,7 @@ def _get_base_template_html() -> str:
             </div>
         </div>
         
-        {% if latest_screenshot %}
-        <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 18px; color: #1f2937;">Latest Snapshot Verification</h3>
-        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
-            <p style="margin-bottom: 10px;"><strong>Agent:</strong> {{ latest_screenshot.agent_name }}</p>
-            <p style="margin-bottom: 15px;"><strong>Captured:</strong> {{ latest_screenshot.captured_at }}</p>
-            <img src="{{ latest_screenshot.url }}" alt="Latest snapshot screenshot" style="max-width: 250px; height: auto; border: 1px solid #d1d5db; border-radius: 4px;">
-        </div>
-        {% endif %}
+
     </div>
     {% endif %}
     
@@ -1007,7 +1008,8 @@ def _get_base_template_html() -> str:
         <div style="margin-bottom: 20px;">
             <strong>{{ device.name }}</strong>
             <div class="progress-bar">
-                <div class="progress-fill" style="width: {{ device.percent }}%">
+                <div class="progress-fill" style="width: {{ device.percent }}%"></div>
+                <div class="progress-text">
                     {{ device.used }} / {{ device.total }} ({{ device.percent }}%)
                 </div>
             </div>
@@ -1066,13 +1068,14 @@ def _get_base_template_html() -> str:
                             <div style="position: absolute; top: 4px; right: 6px; font-size: 10px; font-weight: 600; color: #6b7280;">
                                 {{ day.day_number }}
                             </div>
-                            <div style="font-size: 11px; margin-top: 8px; font-weight: 600;">
-                                {% if day.snapshots_created > 0 %}{{ day.snapshots_created }} backup{% if day.snapshots_created != 1 %}s{% endif %}{% else %}-{% endif %}
+                            <div style="font-size: 11px; margin-top: 8px; opacity: 1;">
+                                <div style="color: #2563eb;">{{ day.local_snapshots }} Local Snap</div>
+                                <div style="color: #059669;">{{ day.cloud_snapshots }} Cloud Snap</div>
                             </div>
-                            <div style="font-size: 9px; margin-top: 2px; opacity: 0.8;">
-                                <div style="color: #2563eb;">{{ day.local_snapshots }} Local</div>
-                                <div style="color: #059669;">{{ day.cloud_snapshots }} Cloud</div>
+                            <div style="font-size: 9px; margin-top: 2px; font-weight: 600; opacity: 0.8;">
+                                {% if day.snapshots_created > 0 %}{{ day.snapshots_created }} backups taken{% if day.snapshots_created != 1 %}s{% endif %}{% else %}-{% endif %}
                             </div>
+
                             {% endif %}
                         </td>
                         {% if loop.index is divisibleby 7 and not loop.last %}

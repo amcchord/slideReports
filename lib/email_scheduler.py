@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 class EmailScheduler:
     """Manages automatic email sending for all API keys"""
     
-    def __init__(self, email_service: EmailService):
+    def __init__(self, email_service: EmailService, ai_generator=None):
         self.scheduler = BackgroundScheduler()
         self.email_service = email_service
+        self.ai_generator = ai_generator
         self.pdf_service = PDFService()
         self.data_dir = os.environ.get('DATA_DIR', '/var/www/reports.slide.recipes/data')
         self.started = False
@@ -117,59 +118,94 @@ class EmailScheduler:
             else:  # 90_days
                 start_date = (yesterday - timedelta(days=89)).replace(hour=0, minute=0, second=0, microsecond=0)
             
-            # Generate report
+            # Get template
             tm = TemplateManager(api_key_hash)
             template = tm.get_template(schedule['template_id'])
             
             if not template:
                 raise ValueError(f"Template {schedule['template_id']} not found")
             
-            generator = ReportGenerator(db, user_tz)
-            report_html = generator.generate_report(
-                template['html_template'],
+            # All data sources for comprehensive reports
+            data_sources = ['devices', 'agents', 'backups', 'snapshots', 'alerts', 
+                           'audits', 'clients', 'users', 'networks', 'virtual_machines', 
+                           'file_restores', 'image_exports', 'accounts']
+            
+            # Generate report with base64 images for email attachment
+            generator = ReportGenerator(db)
+            html_content = generator.generate_report_with_base64_images(
+                template['html_content'],
                 start_date,
                 end_date,
-                client_id=schedule.get('client_id')
+                data_sources,
+                logo_url='/static/img/logo.png',
+                client_id=schedule.get('client_id'),
+                ai_generator=self.ai_generator
             )
             
-            # Prepare attachments based on format
-            attachments = []
-            attachment_format = schedule.get('attachment_format', 'pdf')
+            # Build context for email subject and body rendering
+            email_context = generator._build_context(
+                start_date, end_date, user_tz, data_sources, 
+                '/static/img/logo.png', schedule.get('client_id')
+            )
             
-            if attachment_format in ['html', 'both']:
-                attachments.append({
-                    'Name': 'report.html',
-                    'Content': report_html,
-                    'ContentType': 'text/html'
-                })
-            
-            if attachment_format in ['pdf', 'both']:
-                pdf_content = self.pdf_service.html_to_pdf(report_html)
-                attachments.append({
-                    'Name': 'report.pdf',
-                    'Content': pdf_content,
-                    'ContentType': 'application/pdf'
-                })
-            
-            # Get report data for email template variables
-            report_data = generator.get_report_data(start_date, end_date, schedule.get('client_id'))
+            # Add exec_summary to context if AI generator is available
+            if self.ai_generator:
+                try:
+                    email_context['exec_summary'] = self.ai_generator.generate_executive_summary(email_context)
+                except Exception as e:
+                    logger.warning(f"AI summary generation failed: {e}")
+                    email_context['exec_summary'] = generator._generate_summary(email_context)
+            else:
+                email_context['exec_summary'] = email_context.get('executive_summary', generator._generate_summary(email_context))
             
             # Render email subject and body with template variables
             from jinja2 import Template
             
-            subject_template = Template(schedule.get('email_subject', 'Slide Backup Report'))
-            email_subject = subject_template.render(**report_data)
+            subject_template = Template(schedule.get('email_subject', 'Slide Backup Report - {{ date_range }}'))
+            email_subject = subject_template.render(**email_context)
             
-            body_template = Template(schedule.get('email_body', 'Your report is attached.'))
-            email_body = body_template.render(**report_data)
+            body_template = Template(schedule.get('email_body', '''Your Slide Backup Report for {{ date_range }} is ready.
+
+Executive Summary:
+{{ exec_summary }}
+
+Key Metrics:
+- Total Backups: {{ total_backups }}
+- Success Rate: {{ success_rate }}%
+
+Report generated at {{ generated_at }} ({{ timezone }})'''))
+            email_body = body_template.render(**email_context)
+            
+            # Prepare attachments based on format preference
+            attachment_format = schedule.get('attachment_format', 'pdf')
+            date_str = end_date.strftime('%Y-%m-%d')
+            
+            pdf_content = None
+            pdf_filename = None
+            html_attachment_content = None
+            html_attachment_filename = None
+            
+            if attachment_format in ['pdf', 'both']:
+                pdf_content = PDFService.html_to_pdf(html_content)
+                pdf_filename = f"slide-backup-report-{date_str}.pdf"
+            
+            if attachment_format in ['html', 'both']:
+                html_attachment_content = html_content.encode('utf-8')
+                html_attachment_filename = f"slide-backup-report-{date_str}.html"
             
             # Send email
-            self.email_service.send_email(
+            success, message = self.email_service.send_report_email(
                 to_email=schedule['email_address'],
                 subject=email_subject,
-                body=email_body,
-                attachments=attachments
+                text_body=email_body,
+                pdf_content=pdf_content,
+                pdf_filename=pdf_filename,
+                html_content=html_attachment_content,
+                html_filename=html_attachment_filename
             )
+            
+            if not success:
+                raise Exception(f"Email send failed: {message}")
             
             # Log successful send
             date_range_str = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
