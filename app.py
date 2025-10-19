@@ -2025,9 +2025,11 @@ def api_sync_next(api_key, api_key_hash):
     next_sync = None
     if auto_sync_enabled and last_sync:
         from datetime import datetime, timedelta
-        last_sync_dt = datetime.fromisoformat(last_sync)
+        # Parse timestamp with UTC indicator (Z suffix)
+        last_sync_dt = datetime.fromisoformat(last_sync.replace('Z', '+00:00'))
         next_sync_dt = last_sync_dt + timedelta(hours=frequency_hours)
-        next_sync = next_sync_dt.isoformat()
+        # Return with Z suffix to ensure JavaScript treats it as UTC
+        next_sync = next_sync_dt.isoformat().replace('+00:00', 'Z')
     
     return jsonify({
         'auto_sync_enabled': auto_sync_enabled,
