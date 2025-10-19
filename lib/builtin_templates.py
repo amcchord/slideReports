@@ -198,8 +198,8 @@ def _get_configs_html() -> str:
         }
         
         .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -209,6 +209,8 @@ def _get_configs_html() -> str:
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 20px;
+            flex: 1 1 200px;
+            min-width: 200px;
         }
         
         .metric-label {
@@ -401,14 +403,16 @@ def _get_configs_html() -> str:
         }
         
         .agent-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 12px;
         }
         
         .detail-item {
             display: flex;
             flex-direction: column;
+            flex: 1 1 250px;
+            min-width: 250px;
         }
         
         .detail-label {
@@ -448,7 +452,7 @@ def _get_configs_html() -> str:
             }
             
             @page {
-                size: 1300px 1800px;
+                size: 1600px 2400px;
                 margin: 20mm;
             }
         }
@@ -738,8 +742,8 @@ def _get_base_template_html() -> str:
         }
         
         .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -749,6 +753,8 @@ def _get_base_template_html() -> str:
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 20px;
+            flex: 1 1 200px;
+            min-width: 200px;
         }
         
         .metric-label {
@@ -866,14 +872,12 @@ def _get_base_template_html() -> str:
             body {
                 padding: 20px;
             }
-            
+            @page {
+                size: 1600px 2400px;
+                margin: 0.25in;
+            }
             .section {
                 page-break-inside: avoid;
-            }
-            
-            @page {
-                size: 1300px 1800px;
-                margin: 20mm;
             }
         }
     </style>
@@ -1090,9 +1094,9 @@ def _get_base_template_html() -> str:
         {% for agent in agent_screenshots %}
         <div style="margin-bottom: 30px; page-break-inside: avoid;">
             <h3 style="font-size: 18px; margin-bottom: 15px; color: #1f2937;">{{ agent.agent_name }}</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
                 {% if agent.oldest_screenshot %}
-                <div style="background: #f9fafb; padding: 12px; border-radius: 4px; border: 1px solid #e5e7eb; display: flex; gap: 12px; align-items: flex-start;">
+                <div style="background: #f9fafb; padding: 12px; border-radius: 4px; border: 1px solid #e5e7eb; display: flex; gap: 12px; align-items: flex-start; flex: 1 1 400px; min-width: 400px;">
                     <img src="{{ agent.oldest_screenshot.url }}" alt="Oldest snapshot" style="width: 200px; height: auto; flex-shrink: 0; border: 1px solid #d1d5db; border-radius: 3px;">
                     <div style="flex: 1;">
                         <h4 style="font-size: 13px; margin: 0 0 8px 0; color: #6b7280; font-weight: 600;">Oldest Snapshot</h4>
@@ -1101,7 +1105,7 @@ def _get_base_template_html() -> str:
                 </div>
                 {% endif %}
                 {% if agent.newest_screenshot %}
-                <div style="background: #f9fafb; padding: 12px; border-radius: 4px; border: 1px solid #e5e7eb; display: flex; gap: 12px; align-items: flex-start;">
+                <div style="background: #f9fafb; padding: 12px; border-radius: 4px; border: 1px solid #e5e7eb; display: flex; gap: 12px; align-items: flex-start; flex: 1 1 400px; min-width: 400px;">
                     <img src="{{ agent.newest_screenshot.url }}" alt="Newest snapshot" style="width: 200px; height: auto; flex-shrink: 0; border: 1px solid #d1d5db; border-radius: 3px;">
                     <div style="flex: 1;">
                         <h4 style="font-size: 13px; margin: 0 0 8px 0; color: #6b7280; font-weight: 600;">Newest Snapshot</h4>
@@ -1191,8 +1195,8 @@ def _get_audit_logs_html() -> str:
         }
         
         .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -1202,6 +1206,8 @@ def _get_audit_logs_html() -> str:
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 20px;
+            flex: 1 1 200px;
+            min-width: 200px;
         }
         
         .metric-label {
@@ -1236,8 +1242,8 @@ def _get_audit_logs_html() -> str:
         }
         
         .action-breakdown {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 15px;
             margin-bottom: 30px;
         }
@@ -1248,6 +1254,8 @@ def _get_audit_logs_html() -> str:
             border-radius: 6px;
             padding: 15px;
             text-align: center;
+            flex: 1 1 150px;
+            min-width: 150px;
         }
         
         .action-count {

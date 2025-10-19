@@ -134,7 +134,7 @@ class EmailScheduler:
             
             # Prepare attachments based on format
             attachments = []
-            attachment_format = schedule.get('attachment_format', 'html')
+            attachment_format = schedule.get('attachment_format', 'pdf')
             
             if attachment_format in ['html', 'both']:
                 attachments.append({

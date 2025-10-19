@@ -1453,7 +1453,7 @@ Report generated at {{ generated_at }} ({{ timezone }})""")
         return jsonify({'error': f'Email template rendering failed: {str(e)}'}), 500
     
     # Generate attachments based on format preference
-    attachment_format = schedule.get('attachment_format', 'html')
+    attachment_format = schedule.get('attachment_format', 'pdf')
     date_str = end_date.strftime('%Y-%m-%d')
     
     pdf_content = None

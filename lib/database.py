@@ -458,7 +458,7 @@ Report generated at {{ generated_at }} ({{ timezone }})"""
         
         # Add new columns if they don't exist
         if 'attachment_format' not in existing_columns:
-            cursor.execute("ALTER TABLE email_schedules ADD COLUMN attachment_format TEXT DEFAULT 'html'")
+            cursor.execute("ALTER TABLE email_schedules ADD COLUMN attachment_format TEXT DEFAULT 'pdf'")
         
         if 'email_subject' not in existing_columns:
             cursor.execute("ALTER TABLE email_schedules ADD COLUMN email_subject TEXT")

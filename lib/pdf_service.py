@@ -26,12 +26,12 @@ class PDFService:
         width_css = """
         <style>
             @page {
-                size: 1300px 1800px;
+                size: 1600px 2400px;
                 margin: 0.25in;
             }
             
             body {
-                width: 1300px;
+                width: 100%;
                 margin: 0 auto;
             }
             
@@ -73,7 +73,8 @@ class PDFService:
             
             # Convert HTML to PDF with explicit width CSS and DPI
             # WeasyPrint can handle base64 encoded images in the HTML
-            HTML(string=html_content).write_pdf(pdf_buffer)
+            # Zoom set to 0.5 to render at 50% scale
+            HTML(string=html_content).write_pdf(pdf_buffer, zoom=0.5)
             
             # Get the PDF bytes
             pdf_bytes = pdf_buffer.getvalue()
