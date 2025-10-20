@@ -668,11 +668,334 @@ body {
     }
     
     .container {
-        padding: 1rem;
+        padding: 0.5rem 1rem;
     }
     
     .data-sources-grid {
         grid-template-columns: 1fr;
+    }
+    
+    /* Card Headers - Stack vertically on mobile */
+    .card-header.d-flex {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem;
+    }
+    
+    .card-header > div {
+        width: 100%;
+    }
+    
+    .card-header .d-flex.justify-content-between {
+        flex-direction: row !important;
+        flex-wrap: wrap;
+    }
+    
+    /* Card body spacing */
+    .card-body {
+        padding: 1rem;
+    }
+    
+    /* Buttons & Touch Targets */
+    .btn {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    
+    .btn-sm {
+        min-height: 38px;
+        padding: 0.5rem 0.875rem;
+        font-size: 0.9rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+        border-radius: 6px !important;
+    }
+    
+    .btn-group .btn:last-child {
+        margin-bottom: 0;
+    }
+    
+    .btn-group-sm .btn {
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Navigation */
+    .navbar-nav .nav-item {
+        margin: 0.5rem 0;
+    }
+    
+    .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+    
+    /* Tables - Enable horizontal scrolling */
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+        overflow-x: auto;
+        margin: 0 -1rem;
+        padding: 0 1rem;
+    }
+    
+    .table {
+        min-width: 600px;
+        font-size: 0.875rem;
+    }
+    
+    .table td,
+    .table th {
+        padding: 0.5rem;
+        white-space: nowrap;
+    }
+    
+    /* Forms - Full width inputs */
+    .form-control,
+    .form-select {
+        font-size: 16px;
+        min-height: 44px;
+    }
+    
+    .form-label {
+        font-size: 0.9rem;
+        margin-bottom: 0.35rem;
+    }
+    
+    /* Multi-column forms - Stack on mobile */
+    .row .col-md-2,
+    .row .col-md-4,
+    .row .col-md-6,
+    .row .col-md-8 {
+        margin-bottom: 1rem;
+    }
+    
+    /* Quick Action buttons - Stack vertically */
+    .d-md-flex.gap-2 {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+    
+    .d-md-flex.gap-2 .btn {
+        width: 100%;
+    }
+    
+    .d-grid.gap-2.d-md-flex .btn {
+        width: 100%;
+    }
+    
+    /* Modals */
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        padding: 0.75rem 1rem;
+    }
+    
+    .modal-footer .btn {
+        flex: 1;
+    }
+    
+    /* Typography */
+    h1 {
+        font-size: 1.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    h3 {
+        font-size: 1.25rem;
+    }
+    
+    /* Page header with buttons */
+    .d-flex.justify-content-between.align-items-center {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem;
+    }
+    
+    .d-flex.justify-content-between.align-items-center > div {
+        width: 100%;
+    }
+    
+    .d-flex.justify-content-between.align-items-center .btn,
+    .d-flex.justify-content-between.align-items-center > div > .btn {
+        width: 100%;
+        display: block;
+    }
+    
+    /* Data sources grid - already responsive but ensure spacing */
+    .data-sources-grid {
+        gap: 0.5rem;
+    }
+    
+    .source-toggle-card {
+        padding: 0.75rem;
+    }
+    
+    /* Status badges - ensure readability */
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    /* Alert messages */
+    .alert {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    /* Report preview iframe */
+    #report-preview,
+    #template-preview {
+        min-height: 500px;
+    }
+    
+    /* Empty state */
+    .empty-state {
+        padding: 2rem 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+    }
+    
+    /* Info Banner */
+    .info-banner {
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .info-banner-content {
+        font-size: 0.75rem;
+        padding-right: 2rem;
+    }
+    
+    /* Sync progress items */
+    .sync-item {
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .sync-item-header {
+        flex-wrap: wrap;
+    }
+    
+    /* Metrics table */
+    .metrics-table td:first-child {
+        font-size: 0.875rem;
+    }
+    
+    .metrics-table td:last-child {
+        font-size: 1.25rem;
+    }
+    
+    /* Schedule cards */
+    .schedule-card {
+        padding: 1rem;
+    }
+    
+    /* Ensure touch-friendly links */
+    a {
+        min-height: 24px;
+        display: inline-block;
+    }
+    
+    .card-header a {
+        padding: 0.25rem 0.5rem;
+        margin: -0.25rem -0.5rem;
+    }
+    
+    /* Fix button groups in table cells */
+    td .btn-group {
+        flex-direction: row;
+        width: auto;
+    }
+    
+    td .btn-group .btn {
+        width: auto;
+        margin-bottom: 0;
+        margin-right: 0.25rem;
+    }
+    
+    td .btn-group .btn:last-child {
+        margin-right: 0;
+    }
+    
+    /* Prevent horizontal overflow */
+    body {
+        overflow-x: hidden;
+    }
+    
+    .card {
+        overflow: hidden;
+    }
+}
+
+/* Extra small devices (phones in portrait, less than 576px) */
+@media (max-width: 575px) {
+    .container {
+        padding: 0.5rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-header,
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    /* Even smaller buttons for very small screens */
+    .btn-group-sm .btn {
+        font-size: 0.8rem;
+        padding: 0.35rem 0.65rem;
+    }
+    
+    /* Table cells more compact */
+    .table td,
+    .table th {
+        padding: 0.35rem;
+        font-size: 0.8rem;
+    }
+    
+    /* Navbar brand */
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .navbar-brand img {
+        height: 24px;
     }
 }
 

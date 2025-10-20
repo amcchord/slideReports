@@ -903,6 +903,64 @@ def api_reports_download(api_key, api_key_hash):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/reports/download-pdf', methods=['POST'])
+@require_api_key
+def api_reports_download_pdf(api_key, api_key_hash):
+    """Generate and download report as PDF using weasyprint"""
+    data = request.get_json()
+    template_id = data.get('template_id')
+    start_date_str = data.get('start_date')
+    end_date_str = data.get('end_date')
+    data_sources = data.get('data_sources', [])
+    client_id = data.get('client_id')  # Optional client filter
+    
+    # Parse dates
+    start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+    end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+    
+    # Get template
+    tm = TemplateManager(api_key_hash)
+    template = tm.get_template(template_id)
+    
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    # Generate report with base64 images
+    db = Database(get_database_path(api_key_hash))
+    generator = ReportGenerator(db)
+    
+    try:
+        # Generate HTML with base64-encoded images
+        html = generator.generate_report_with_base64_images(
+            template['html_content'],
+            start_date,
+            end_date,
+            data_sources,
+            logo_url='/static/img/logo.png',
+            client_id=client_id,
+            ai_generator=ai_generator
+        )
+        
+        # Convert HTML to PDF using weasyprint
+        pdf_bytes = PDFService.html_to_pdf(html)
+        
+        # Create filename with date
+        if start_date and end_date:
+            filename = f"backup-report-{start_date.strftime('%Y-%m-%d')}-to-{end_date.strftime('%Y-%m-%d')}.pdf"
+        else:
+            filename = f"backup-report-{datetime.now().strftime('%Y-%m-%d')}.pdf"
+        
+        # Return as downloadable PDF file
+        response = make_response(pdf_bytes)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+    except Exception as e:
+        logger.error(f"PDF download generation failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/preferences/timezone', methods=['POST'])
 @require_api_key
 def api_set_timezone(api_key, api_key_hash):
