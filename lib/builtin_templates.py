@@ -74,6 +74,16 @@ def get_builtin_templates() -> List[Dict[str, Any]]:
             'is_default': False,
             'created_at': '2025-10-18T00:00:00.000000',
             'updated_at': '2025-10-18T00:00:00.000000'
+        },
+        {
+            'template_id': -7,
+            'name': 'Agent Overview',
+            'description': 'Summary of agents with backup status, cloud snapshots, and screenshots',
+            'html_content': _get_agent_overview_template_html(),
+            'is_builtin': True,
+            'is_default': False,
+            'created_at': '2025-10-22T00:00:00.000000',
+            'updated_at': '2025-10-22T00:00:00.000000'
         }
     ]
 
@@ -123,6 +133,11 @@ def _get_audit_logs_template_html() -> str:
 def _get_snapshot_audit_template_html() -> str:
     """Get HTML for snapshot audit report template"""
     return _get_snapshot_audit_html()
+
+
+def _get_agent_overview_template_html() -> str:
+    """Get HTML for agent overview report template"""
+    return _get_agent_overview_html()
 
 
 def _get_configs_html() -> str:
@@ -1862,6 +1877,269 @@ def _get_snapshot_audit_html() -> str:
         <div class="no-data">No snapshot data found for the selected time period.</div>
     </div>
     {% endif %}
+</body>
+</html>"""
+
+
+def _get_agent_overview_html() -> str:
+    """
+    Get the HTML template for the Agent Overview report.
+    Shows agent metrics and a table with backup status, cloud snapshots, and screenshots.
+    """
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Overview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            background: #ffffff;
+            padding: 40px;
+        }
+        
+        .report-header {
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: flex-start;
+            gap: 30px;
+        }
+        
+        .report-logo {
+            max-width: 150px;
+            height: auto;
+            flex-shrink: 0;
+        }
+        
+        .report-header-content {
+            flex: 1;
+        }
+        
+        .report-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 10px;
+            margin-top: 0;
+        }
+        
+        .report-meta {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        
+        .metric-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            flex: 1 1 200px;
+            min-width: 200px;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6b7280;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .metric-value.success {
+            color: #047857;
+        }
+        
+        .metric-value.danger {
+            color: #dc2626;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background: white;
+        }
+        
+        .data-table th {
+            background: #f3f4f6;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            color: #1f2937;
+            border-bottom: 2px solid #d1d5db;
+        }
+        
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+        }
+        
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .data-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+            font-style: italic;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .screenshot-thumbnail {
+            width: 80px;
+            height: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
+        
+        .no-screenshot {
+            color: #9ca3af;
+            font-style: italic;
+            font-size: 13px;
+        }
+        
+        @media print {
+            body {
+                padding: 20px;
+            }
+            
+            .section {
+                page-break-inside: avoid;
+            }
+            
+            @page {
+                size: 1600px 2400px;
+                margin: 20mm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-header">
+        <img src="{{ logo_url }}" alt="Logo" class="report-logo">
+        <div class="report-header-content">
+            <h1 class="report-title">Agent Overview</h1>
+            <div class="report-meta">
+                <strong>Report Period:</strong> {{ date_range }}<br>
+                <strong>Generated:</strong> {{ generated_at }}<br>
+                <strong>Timezone:</strong> {{ timezone }}
+                {% if client_name %}
+                <br><strong>Client:</strong> {{ client_name }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2 class="section-title">Summary</h2>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total Agents</div>
+                <div class="metric-value">{{ agent_overview_data.summary.total_agents }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Successful Backups</div>
+                <div class="metric-value success">{{ agent_overview_data.summary.successful_backups }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Failed Backups</div>
+                <div class="metric-value danger">{{ agent_overview_data.summary.failed_backups }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Success Percentage</div>
+                <div class="metric-value">{{ agent_overview_data.summary.success_percentage }}%</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2 class="section-title">Agent Details</h2>
+        
+        {% if agent_overview_data.agents %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    {% if agent_overview_data.has_multiple_clients %}
+                    <th>Client</th>
+                    {% endif %}
+                    <th>Agent Name</th>
+                    <th>Last Backup</th>
+                    <th>Last Cloud</th>
+                    <th>Last Screenshot</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for agent in agent_overview_data.agents %}
+                <tr>
+                    {% if agent_overview_data.has_multiple_clients %}
+                    <td>{{ agent.client_name or 'N/A' }}</td>
+                    {% endif %}
+                    <td>{{ agent.agent_name }}</td>
+                    <td>{{ agent.last_backup or 'Never' }}</td>
+                    <td>{{ agent.last_cloud or 'None' }}</td>
+                    <td>
+                        {% if agent.last_screenshot_url %}
+                        <img src="{{ agent.last_screenshot_url }}" alt="Screenshot" class="screenshot-thumbnail">
+                        {% else %}
+                        <span class="no-screenshot">None</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-data">No agents found for the selected period.</div>
+        {% endif %}
+    </div>
 </body>
 </html>"""
 

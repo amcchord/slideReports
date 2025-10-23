@@ -667,6 +667,9 @@ class ReportGenerator:
         config_metrics = self._calculate_agent_config_metrics(user_tz, client_id)
         context.update(config_metrics)
         
+        # Add agent overview data
+        context['agent_overview_data'] = self._calculate_agent_overview_data(start_date, end_date, user_tz, client_id)
+        
         # Generate executive summary
         context['executive_summary'] = self._generate_summary(context)
         
@@ -1892,4 +1895,127 @@ class ReportGenerator:
                 return f"{bytes_val:.1f} {unit}"
             bytes_val /= 1024.0
         return f"{bytes_val:.1f} PB"
+    
+    def _calculate_agent_overview_data(self, start_date: datetime, end_date: datetime,
+                                       user_tz: pytz.timezone, client_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Calculate agent overview data for the report.
+        
+        Args:
+            start_date: Start date for report data
+            end_date: End date for report data
+            user_tz: User's timezone
+            client_id: Optional client ID to filter data
+            
+        Returns:
+            Dictionary with summary metrics and agent table data
+        """
+        # Get all agents
+        if client_id:
+            agents = self.database.get_records('agents', where='client_id = ?', params=(client_id,))
+        else:
+            agents = self.database.get_records('agents')
+        
+        # Check if we have multiple clients
+        all_clients = self.database.get_records('clients')
+        has_multiple_clients = len(all_clients) > 1
+        
+        # Build client lookup dictionary
+        client_lookup = {}
+        for client in all_clients:
+            client_lookup[client['client_id']] = client.get('name') or client['client_id']
+        
+        # Initialize counters
+        total_agents = len(agents)
+        successful_backups = 0
+        failed_backups = 0
+        
+        agent_data_list = []
+        
+        for agent in agents:
+            agent_id = agent['agent_id']
+            agent_name = agent.get('display_name') or agent.get('hostname') or agent_id
+            
+            # Get client name if multiple clients
+            client_name = None
+            if has_multiple_clients and agent.get('client_id'):
+                client_name = client_lookup.get(agent['client_id'], 'N/A')
+            
+            # Get most recent successful backup in date range
+            last_successful_backup = self.database.execute_query("""
+                SELECT * FROM backups 
+                WHERE agent_id = ? 
+                  AND status = 'succeeded'
+                  AND started_at >= ? 
+                  AND started_at <= ?
+                ORDER BY started_at DESC
+                LIMIT 1
+            """, (agent_id, start_date.isoformat(), end_date.isoformat()))
+            
+            last_backup = None
+            if last_successful_backup:
+                successful_backups += 1
+                backup_dt = self._parse_datetime(last_successful_backup[0]['started_at'])
+                if backup_dt:
+                    last_backup = self._format_datetime_absolute(backup_dt, user_tz)
+            else:
+                failed_backups += 1
+            
+            # Get newest snapshot in cloud within date range
+            last_cloud = None
+            cloud_snapshots = self.database.execute_query("""
+                SELECT * FROM snapshots 
+                WHERE agent_id = ? 
+                  AND backup_started_at >= ? 
+                  AND backup_started_at <= ?
+                  AND locations LIKE '%cloud%'
+                ORDER BY backup_started_at DESC
+                LIMIT 1
+            """, (agent_id, start_date.isoformat(), end_date.isoformat()))
+            
+            if cloud_snapshots:
+                cloud_dt = self._parse_datetime(cloud_snapshots[0]['backup_started_at'])
+                if cloud_dt:
+                    last_cloud = self._format_datetime_absolute(cloud_dt, user_tz)
+            
+            # Get newest screenshot in date range
+            last_screenshot_url = None
+            screenshot_snapshots = self.database.execute_query("""
+                SELECT * FROM snapshots 
+                WHERE agent_id = ? 
+                  AND backup_started_at >= ? 
+                  AND backup_started_at <= ?
+                  AND verify_boot_screenshot_url IS NOT NULL 
+                  AND verify_boot_screenshot_url != ''
+                ORDER BY backup_started_at DESC
+                LIMIT 1
+            """, (agent_id, start_date.isoformat(), end_date.isoformat()))
+            
+            if screenshot_snapshots:
+                last_screenshot_url = screenshot_snapshots[0]['verify_boot_screenshot_url']
+            
+            agent_data_list.append({
+                'agent_name': agent_name,
+                'client_name': client_name,
+                'last_backup': last_backup,
+                'last_cloud': last_cloud,
+                'last_screenshot_url': last_screenshot_url
+            })
+        
+        # Calculate success percentage
+        if total_agents > 0:
+            success_percentage = round((successful_backups / total_agents) * 100, 1)
+        else:
+            success_percentage = 0
+        
+        return {
+            'summary': {
+                'total_agents': total_agents,
+                'successful_backups': successful_backups,
+                'failed_backups': failed_backups,
+                'success_percentage': success_percentage
+            },
+            'agents': agent_data_list,
+            'has_multiple_clients': has_multiple_clients
+        }
 

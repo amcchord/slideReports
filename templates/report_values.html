@@ -668,6 +668,90 @@
         </div>
     </div>
 
+    <!-- Agent Overview Data -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-people"></i> Agent Overview Data</h3>
+        </div>
+        <div class="card-body">
+            <p>Summary data for the Agent Overview report showing agent backup status, cloud snapshots, and screenshots for a specific date range.</p>
+            
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Variable</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 60%;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{ '{{ agent_overview_data }}' }}</code></td>
+                        <td>dict</td>
+                        <td>Contains <code>summary</code> (dict), <code>agents</code> (list), and <code>has_multiple_clients</code> (boolean)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ agent_overview_data.summary }}' }}</code></td>
+                        <td>dict</td>
+                        <td>Summary metrics: <code>total_agents</code>, <code>successful_backups</code>, <code>failed_backups</code>, <code>success_percentage</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ agent_overview_data.agents }}' }}</code></td>
+                        <td>list</td>
+                        <td>List of agent objects with backup status information</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{ '{{ agent_overview_data.has_multiple_clients }}' }}</code></td>
+                        <td>boolean</td>
+                        <td>True if there are multiple clients in the system (use for conditional client column display)</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <p><strong>Agent Object Structure:</strong></p>
+            <ul>
+                <li><code>agent_name</code> - Agent display name, hostname, or agent_id</li>
+                <li><code>client_name</code> - Client name (only present if multiple clients exist, otherwise None)</li>
+                <li><code>last_backup</code> - Most recent successful backup datetime (formatted, or None if no successful backups in date range)</li>
+                <li><code>last_cloud</code> - Newest snapshot in cloud location (formatted, or None if no cloud snapshots in date range)</li>
+                <li><code>last_screenshot_url</code> - URL to newest screenshot image (or None if no screenshots in date range)</li>
+            </ul>
+            
+            <p><strong>Example usage:</strong></p>
+            <pre><code>{{ '<h2>Summary</h2>' }}
+{{ '<p>Total Agents: {{ agent_overview_data.summary.total_agents }}</p>' }}
+{{ '<p>Successful: {{ agent_overview_data.summary.successful_backups }}</p>' }}
+{{ '<p>Failed: {{ agent_overview_data.summary.failed_backups }}</p>' }}
+{{ '<p>Success Rate: {{ agent_overview_data.summary.success_percentage }}%</p>' }}
+
+{{ '<table>' }}
+  {{ '<tr>' }}
+    {{ '{% if agent_overview_data.has_multiple_clients %}' }}
+    {{ '<th>Client</th>' }}
+    {{ '{% endif %}' }}
+    {{ '<th>Agent</th><th>Last Backup</th><th>Last Cloud</th><th>Last Screenshot</th>' }}
+  {{ '</tr>' }}
+  {{ '{% for agent in agent_overview_data.agents %}' }}
+  {{ '<tr>' }}
+    {{ '{% if agent_overview_data.has_multiple_clients %}' }}
+    {{ '<td>{{ agent.client_name or "N/A" }}</td>' }}
+    {{ '{% endif %}' }}
+    {{ '<td>{{ agent.agent_name }}</td>' }}
+    {{ '<td>{{ agent.last_backup or "Never" }}</td>' }}
+    {{ '<td>{{ agent.last_cloud or "None" }}</td>' }}
+    {{ '<td>' }}
+      {{ '{% if agent.last_screenshot_url %}' }}
+        {{ '<img src="{{ agent.last_screenshot_url }}" alt="Screenshot" style="width: 80px;">' }}
+      {{ '{% else %}' }}
+        {{ 'None' }}
+      {{ '{% endif %}' }}
+    {{ '</td>' }}
+  {{ '</tr>' }}
+  {{ '{% endfor %}' }}
+{{ '</table>' }}</code></pre>
+        </div>
+    </div>
+
     <!-- Raw Data Arrays -->
     <div class="card mb-4">
         <div class="card-header">
