@@ -633,6 +633,40 @@ Report generated at {{ generated_at }} ({{ timezone }})"""
                     items_synced = 0
             """)
     
+    def prune_old_snapshots(self, days: int = 90) -> int:
+        """
+        Delete all snapshot records older than the specified number of days.
+        
+        Args:
+            days: Number of days to keep (default: 90)
+            
+        Returns:
+            Number of records deleted
+        """
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_iso = cutoff_date.isoformat()
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # First count how many will be deleted
+            cursor.execute("""
+                SELECT COUNT(*) FROM snapshots 
+                WHERE backup_started_at IS NOT NULL 
+                AND backup_started_at < ?
+            """, (cutoff_iso,))
+            count = cursor.fetchone()[0]
+            
+            # Delete old records
+            if count > 0:
+                cursor.execute("""
+                    DELETE FROM snapshots 
+                    WHERE backup_started_at IS NOT NULL 
+                    AND backup_started_at < ?
+                """, (cutoff_iso,))
+            
+            return count
+    
     def execute_query(self, query: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
         """Execute a custom query"""
         with self.get_connection() as conn:

@@ -156,6 +156,18 @@ class BackgroundSyncManager:
             
             logger.info(f"Sync completed successfully for {api_key_hash[:8]}")
             
+            # Prune old snapshot records (older than 90 days)
+            pruned_count = 0
+            try:
+                logger.info(f"Pruning snapshot records older than 90 days for {api_key_hash[:8]}")
+                pruned_count = db.prune_old_snapshots(days=90)
+                if pruned_count > 0:
+                    logger.info(f"Pruned {pruned_count} old snapshot records for {api_key_hash[:8]}")
+                else:
+                    logger.info(f"No old snapshot records to prune for {api_key_hash[:8]}")
+            except Exception as e:
+                logger.error(f"Error pruning old snapshots for {api_key_hash[:8]}: {e}")
+            
             # Update state to completed
             self.update_sync_state(api_key_hash, {
                 'status': 'completed',
@@ -164,7 +176,8 @@ class BackgroundSyncManager:
                 'progress': {},
                 'completed_at': datetime.utcnow().isoformat() + 'Z',
                 'cutoff_date': cutoff_date.isoformat(),
-                'results': results
+                'results': results,
+                'pruned_snapshots': pruned_count
             })
         except Exception as e:
             logger.error(f"Sync failed for {api_key_hash[:8]}: {e}", exc_info=True)
