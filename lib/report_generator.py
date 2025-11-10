@@ -4,7 +4,7 @@ Report generation engine for creating reports from templates and data.
 import pytz
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
-from jinja2 import Template
+from .sandbox_config import get_sandbox
 from .database import Database
 
 
@@ -124,7 +124,9 @@ class ReportGenerator:
         
         # Render template with graceful error handling
         try:
-            template = Template(template_html)
+            # Use sandboxed environment to prevent SSTI attacks
+            sandbox = get_sandbox()
+            template = sandbox.from_string(template_html)
             return template.render(**context)
         except Exception as e:
             import logging

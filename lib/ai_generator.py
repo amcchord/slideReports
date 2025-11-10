@@ -5,7 +5,8 @@ import anthropic
 import json
 import logging
 from typing import Dict, Any, Optional
-from jinja2 import Template, TemplateSyntaxError, UndefinedError
+from jinja2 import TemplateSyntaxError, UndefinedError
+from .sandbox_config import get_sandbox
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +91,9 @@ class AITemplateGenerator:
             return False, "Template doesn't end with </html> - appears to be truncated. Try generating again or request a simpler template."
         
         try:
-            # Try to create Jinja2 template
-            template = Template(html_content)
+            # Try to create Jinja2 template using sandboxed environment
+            sandbox = get_sandbox()
+            template = sandbox.from_string(html_content)
             
             # Create minimal sample data
             sample_data = {

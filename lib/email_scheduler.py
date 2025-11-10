@@ -159,12 +159,15 @@ class EmailScheduler:
                 email_context['exec_summary'] = email_context.get('executive_summary', generator._generate_summary(email_context))
             
             # Render email subject and body with template variables
-            from jinja2 import Template
+            from .sandbox_config import get_sandbox
             
-            subject_template = Template(schedule.get('email_subject', 'Slide Backup Report - {{ date_range }}'))
+            # Use sandboxed environment to prevent SSTI attacks
+            sandbox = get_sandbox()
+            
+            subject_template = sandbox.from_string(schedule.get('email_subject', 'Slide Backup Report - {{ date_range }}'))
             email_subject = subject_template.render(**email_context)
             
-            body_template = Template(schedule.get('email_body', '''Your Slide Backup Report for {{ date_range }} is ready.
+            body_template = sandbox.from_string(schedule.get('email_body', '''Your Slide Backup Report for {{ date_range }} is ready.
 
 Executive Summary:
 {{ exec_summary }}

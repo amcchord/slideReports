@@ -47,6 +47,21 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
+            # Schema metadata table for tracking database version and migrations
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schema_metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            
+            # Initialize schema version if not exists (0 = pre-versioning, 1 = snapshot locations fixed)
+            cursor.execute("""
+                INSERT OR IGNORE INTO schema_metadata (key, value, updated_at)
+                VALUES ('schema_version', '0', ?)
+            """, (datetime.utcnow().isoformat(),))
+            
             # User preferences table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS user_preferences (
@@ -670,6 +685,43 @@ Report generated at {{ generated_at }} ({{ timezone }})"""
                 return row['encrypted_api_key']
             
             return None
+    
+    def get_schema_version(self) -> int:
+        """
+        Get the current schema version of the database.
+        
+        Returns:
+            Schema version number (0 = pre-versioning)
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    SELECT value FROM schema_metadata
+                    WHERE key = 'schema_version'
+                """)
+                row = cursor.fetchone()
+                if row:
+                    return int(row['value'])
+                else:
+                    return 0
+            except sqlite3.OperationalError:
+                # Table doesn't exist in older databases
+                return 0
+    
+    def set_schema_version(self, version: int):
+        """
+        Set the schema version of the database.
+        
+        Args:
+            version: Schema version number
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO schema_metadata (key, value, updated_at)
+                VALUES ('schema_version', ?, ?)
+            """, (str(version), datetime.utcnow().isoformat()))
     
     def get_data_source_counts(self) -> Dict[str, int]:
         """Get counts of records in each data source table"""

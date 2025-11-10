@@ -493,6 +493,14 @@ def templates_view(api_key, api_key_hash, template_id):
 @require_api_key
 def api_templates_create(api_key, api_key_hash):
     """Create new template"""
+    from lib.template_validator import validate_template
+    from lib.rate_limiter import check_rate_limit
+    
+    # Check rate limit
+    is_allowed, rate_limit_msg = check_rate_limit(api_key_hash, "template_create")
+    if not is_allowed:
+        return jsonify({'error': rate_limit_msg}), 429
+    
     data = request.get_json()
     name = data.get('name')
     description = data.get('description', '')
@@ -501,16 +509,45 @@ def api_templates_create(api_key, api_key_hash):
     if not name or not html_content:
         return jsonify({'error': 'Name and HTML content required'}), 400
     
+    # Validate template for security vulnerabilities
+    is_valid, error_message, warnings = validate_template(html_content)
+    
+    if not is_valid:
+        logger.warning(f"Template creation blocked for {api_key_hash[:8]}: {error_message}")
+        return jsonify({
+            'error': f'Template validation failed: {error_message}',
+            'warnings': warnings
+        }), 400
+    
+    # Log warnings if any
+    if warnings:
+        logger.info(f"Template creation warnings for {api_key_hash[:8]}: {warnings}")
+    
+    # Log template creation for audit trail
+    logger.info(f"Template created by {api_key_hash[:8]}: name='{name}', size={len(html_content)} bytes")
+    
     tm = TemplateManager(api_key_hash)
     template_id = tm.create_template(name, description, html_content)
     
-    return jsonify({'template_id': template_id, 'success': True}), 201
+    response_data = {'template_id': template_id, 'success': True}
+    if warnings:
+        response_data['warnings'] = warnings
+    
+    return jsonify(response_data), 201
 
 
 @app.route('/api/templates/<template_id>', methods=['PATCH'])
 @require_api_key
 def api_templates_update(api_key, api_key_hash, template_id):
     """Update template"""
+    from lib.template_validator import validate_template
+    from lib.rate_limiter import check_rate_limit
+    
+    # Check rate limit
+    is_allowed, rate_limit_msg = check_rate_limit(api_key_hash, "template_update")
+    if not is_allowed:
+        return jsonify({'error': rate_limit_msg}), 429
+    
     # Convert to int (Flask's <int:> doesn't support negative numbers)
     try:
         template_id = int(template_id)
@@ -522,16 +559,40 @@ def api_templates_update(api_key, api_key_hash, template_id):
         return jsonify({'error': 'Cannot edit built-in templates'}), 400
     
     data = request.get_json()
+    html_content = data.get('html_content')
+    
+    # Validate template if html_content is being updated
+    warnings = []
+    if html_content:
+        is_valid, error_message, warnings = validate_template(html_content)
+        
+        if not is_valid:
+            logger.warning(f"Template update blocked for {api_key_hash[:8]}, template_id={template_id}: {error_message}")
+            return jsonify({
+                'error': f'Template validation failed: {error_message}',
+                'warnings': warnings
+            }), 400
+        
+        # Log warnings if any
+        if warnings:
+            logger.info(f"Template update warnings for {api_key_hash[:8]}, template_id={template_id}: {warnings}")
+        
+        # Log template update for audit trail
+        logger.info(f"Template updated by {api_key_hash[:8]}: template_id={template_id}, size={len(html_content)} bytes")
     
     tm = TemplateManager(api_key_hash)
     tm.update_template(
         template_id,
         name=data.get('name'),
         description=data.get('description'),
-        html_content=data.get('html_content')
+        html_content=html_content
     )
     
-    return jsonify({'success': True})
+    response_data = {'success': True}
+    if warnings:
+        response_data['warnings'] = warnings
+    
+    return jsonify(response_data)
 
 
 @app.route('/api/templates/<template_id>', methods=['DELETE'])
@@ -1489,12 +1550,15 @@ def api_email_schedules_test(api_key, api_key_hash, schedule_id):
     
     # Render email subject and body with template variables
     try:
-        from jinja2 import Template as JinjaTemplate
+        from lib.sandbox_config import get_sandbox
         
-        email_subject_template = JinjaTemplate(schedule['email_subject'] or "Slide Backup Report - {{ date_range }}")
+        # Use sandboxed environment to prevent SSTI attacks
+        sandbox = get_sandbox()
+        
+        email_subject_template = sandbox.from_string(schedule['email_subject'] or "Slide Backup Report - {{ date_range }}")
         rendered_subject = email_subject_template.render(**email_context)
         
-        email_body_template = JinjaTemplate(schedule['email_body'] or """Your Slide Backup Report for {{ date_range }} is ready.
+        email_body_template = sandbox.from_string(schedule['email_body'] or """Your Slide Backup Report for {{ date_range }} is ready.
 
 Executive Summary:
 {{ exec_summary }}

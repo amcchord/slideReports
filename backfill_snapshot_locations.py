@@ -17,6 +17,7 @@ import sys
 import json
 import sqlite3
 from pathlib import Path
+from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -115,6 +116,27 @@ def backfill_database(db_path, dry_run=False):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
+    # Check current schema version
+    try:
+        cursor.execute("SELECT value FROM schema_metadata WHERE key = 'schema_version'")
+        row = cursor.fetchone()
+        if row:
+            current_version = int(row['value'])
+            print(f"Current schema version: {current_version}")
+            if current_version >= 1:
+                print("Database already at version 1 or higher (snapshot locations should be correct)")
+        else:
+            print("Current schema version: 0 (pre-versioning)")
+    except sqlite3.OperationalError:
+        print("Current schema version: 0 (no version table)")
+    
+    # Check if snapshots table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='snapshots'")
+    if not cursor.fetchone():
+        print("No snapshots table found, skipping this database")
+        conn.close()
+        return 0
+    
     # Get all snapshots
     cursor.execute("""
         SELECT snapshot_id, locations, deletions, deleted,
@@ -176,6 +198,23 @@ def backfill_database(db_path, dry_run=False):
     if not dry_run:
         conn.commit()
         print(f"Updated {updated_count} snapshot records")
+        
+        # Create schema_metadata table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS schema_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        
+        # Set schema version to 1 (snapshot locations fixed)
+        cursor.execute("""
+            INSERT OR REPLACE INTO schema_metadata (key, value, updated_at)
+            VALUES ('schema_version', '1', ?)
+        """, (datetime.utcnow().isoformat(),))
+        conn.commit()
+        print("Set database schema version to 1")
     else:
         print(f"Would update {updated_count} snapshot records (dry run)")
     
