@@ -21,6 +21,7 @@ from lib.email_schedules import EmailScheduleManager
 from lib.email_service import EmailService
 from lib.email_scheduler import EmailScheduler
 from lib.pdf_service import PDFService
+from lib.email_builder import build_email_attachments, EmailTooLargeError
 import pytz
 import re
 
@@ -1515,22 +1516,13 @@ def api_email_schedules_test(api_key, api_key_hash, schedule_id):
                    'clients', 'users', 'networks', 'virtual_machines', 'file_restores', 
                    'image_exports', 'accounts']
     
-    # Generate report HTML and get context for email rendering
+    # Build context for email subject and body rendering. The actual report
+    # HTML is rendered inside build_email_attachments below (with image
+    # optimization and the 10 MB Postmark size guard).
     try:
         generator = ReportGenerator(db)
-        html_content = generator.generate_report_with_base64_images(
-            template['html_content'],
-            start_date,
-            end_date,
-            data_sources,
-            logo_url='/static/img/logo.png',
-            client_id=schedule.get('client_id'),
-            ai_generator=ai_generator
-        )
-        
-        # Build context for email subject and body rendering
         email_context = generator._build_context(
-            start_date, end_date, user_tz, data_sources, 
+            start_date, end_date, user_tz, data_sources,
             '/static/img/logo.png', schedule.get('client_id')
         )
         
@@ -1574,44 +1566,50 @@ Report generated at {{ generated_at }} ({{ timezone }})""")
         logger.error(f"Email template rendering failed: {e}")
         return jsonify({'error': f'Email template rendering failed: {str(e)}'}), 500
     
-    # Generate attachments based on format preference
+    # Generate attachments with image optimization and size-aware retry.
     attachment_format = schedule.get('attachment_format', 'pdf')
     date_str = end_date.strftime('%Y-%m-%d')
-    
-    pdf_content = None
-    pdf_filename = None
-    html_attachment_content = None
-    html_attachment_filename = None
-    
-    if attachment_format in ['pdf', 'both']:
-        try:
-            pdf_content = PDFService.html_to_pdf(html_content)
-            pdf_filename = f"slide-backup-report-{date_str}.pdf"
-        except Exception as e:
-            logger.error(f"PDF generation failed: {e}")
-            return jsonify({'error': f'PDF generation failed: {str(e)}'}), 500
-    
-    if attachment_format in ['html', 'both']:
-        html_attachment_content = html_content.encode('utf-8')
-        html_attachment_filename = f"slide-backup-report-{date_str}.html"
-    
+
+    try:
+        attachments = build_email_attachments(
+            generator=generator,
+            template_html=template['html_content'],
+            start_date=start_date,
+            end_date=end_date,
+            data_sources=data_sources,
+            logo_url='/static/img/logo.png',
+            client_id=schedule.get('client_id'),
+            ai_generator=ai_generator,
+            attachment_format=attachment_format,
+            date_str=date_str,
+            to_email=schedule['email_address'],
+            subject=rendered_subject,
+            text_body=rendered_body,
+        )
+    except EmailTooLargeError as e:
+        logger.warning(f"Manual email send rejected (too large): {e}")
+        return jsonify({'error': str(e)}), 413
+    except Exception as e:
+        logger.error(f"Attachment generation failed: {e}")
+        return jsonify({'error': f'Attachment generation failed: {str(e)}'}), 500
+
     # Send email
     try:
         success, message = email_service.send_report_email(
             to_email=schedule['email_address'],
             subject=rendered_subject,
             text_body=rendered_body,
-            pdf_content=pdf_content,
-            pdf_filename=pdf_filename,
-            html_content=html_attachment_content,
-            html_filename=html_attachment_filename
+            pdf_content=attachments['pdf_content'],
+            pdf_filename=attachments['pdf_filename'],
+            html_content=attachments['html_attachment_content'],
+            html_filename=attachments['html_attachment_filename'],
         )
-        
+
         if success:
             return jsonify({'success': True, 'message': 'Test email sent successfully'})
         else:
             return jsonify({'error': message}), 500
-            
+
     except Exception as e:
         logger.error(f"Email send failed: {e}")
         return jsonify({'error': f'Failed to send email: {str(e)}'}), 500

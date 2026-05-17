@@ -12,6 +12,7 @@ from .templates import TemplateManager
 from .report_generator import ReportGenerator
 from .email_service import EmailService
 from .pdf_service import PDFService
+from .email_builder import build_email_attachments, EmailTooLargeError
 import glob
 import pytz
 from datetime import timedelta
@@ -210,21 +211,13 @@ class EmailScheduler:
                            'audits', 'clients', 'users', 'networks', 'virtual_machines', 
                            'file_restores', 'image_exports', 'accounts']
             
-            # Generate report with base64 images for email attachment
+            # Build context for email subject and body rendering. The actual
+            # report HTML is rendered inside build_email_attachments below
+            # (with image optimization enabled, plus a fallback retry pass if
+            # the projected attachment is over Postmark's 10 MB limit).
             generator = ReportGenerator(db)
-            html_content = generator.generate_report_with_base64_images(
-                template['html_content'],
-                start_date,
-                end_date,
-                data_sources,
-                logo_url='/static/img/logo.png',
-                client_id=schedule.get('client_id'),
-                ai_generator=self.ai_generator
-            )
-            
-            # Build context for email subject and body rendering
             email_context = generator._build_context(
-                start_date, end_date, user_tz, data_sources, 
+                start_date, end_date, user_tz, data_sources,
                 '/static/img/logo.png', schedule.get('client_id')
             )
             
@@ -259,34 +252,37 @@ Key Metrics:
 Report generated at {{ generated_at }} ({{ timezone }})'''))
             email_body = body_template.render(**email_context)
             
-            # Prepare attachments based on format preference
+            # Build attachments with image optimization and size-aware retry.
             attachment_format = schedule.get('attachment_format', 'pdf')
             date_str = end_date.strftime('%Y-%m-%d')
-            
-            pdf_content = None
-            pdf_filename = None
-            html_attachment_content = None
-            html_attachment_filename = None
-            
-            if attachment_format in ['pdf', 'both']:
-                pdf_content = PDFService.html_to_pdf(html_content)
-                pdf_filename = f"slide-backup-report-{date_str}.pdf"
-            
-            if attachment_format in ['html', 'both']:
-                html_attachment_content = html_content.encode('utf-8')
-                html_attachment_filename = f"slide-backup-report-{date_str}.html"
-            
+
+            attachments = build_email_attachments(
+                generator=generator,
+                template_html=template['html_content'],
+                start_date=start_date,
+                end_date=end_date,
+                data_sources=data_sources,
+                logo_url='/static/img/logo.png',
+                client_id=schedule.get('client_id'),
+                ai_generator=self.ai_generator,
+                attachment_format=attachment_format,
+                date_str=date_str,
+                to_email=schedule['email_address'],
+                subject=email_subject,
+                text_body=email_body,
+            )
+
             # Send email
             success, message = self.email_service.send_report_email(
                 to_email=schedule['email_address'],
                 subject=email_subject,
                 text_body=email_body,
-                pdf_content=pdf_content,
-                pdf_filename=pdf_filename,
-                html_content=html_attachment_content,
-                html_filename=html_attachment_filename
+                pdf_content=attachments['pdf_content'],
+                pdf_filename=attachments['pdf_filename'],
+                html_content=attachments['html_attachment_content'],
+                html_filename=attachments['html_attachment_filename'],
             )
-            
+
             if not success:
                 raise Exception(f"Email send failed: {message}")
             
@@ -300,6 +296,15 @@ Report generated at {{ generated_at }} ({{ timezone }})'''))
             
             logger.info(f"Successfully sent email for schedule {schedule['schedule_id']}")
         
+        except EmailTooLargeError as e:
+            # Friendly, user-facing error: report exceeds Postmark's 10 MB limit
+            # even after image compression. Don't dump a full stack trace.
+            logger.warning(
+                f"Schedule {schedule['schedule_id']} email skipped: {e}"
+            )
+            self._log_email_send(db, schedule['schedule_id'], schedule['email_address'],
+                               'failed', str(e), None)
+            esm.update_after_run(schedule['schedule_id'], False, str(e), timezone)
         except Exception as e:
             logger.error(f"Error executing schedule {schedule['schedule_id']}: {e}", exc_info=True)
             

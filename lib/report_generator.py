@@ -375,7 +375,10 @@ class ReportGenerator:
                                            data_sources: Optional[List[str]] = None,
                                            logo_url: str = '/static/img/logo.png',
                                            client_id: Optional[str] = None,
-                                           ai_generator = None) -> str:
+                                           ai_generator = None,
+                                           optimize_images: bool = False,
+                                           image_max_width: int = 600,
+                                           image_jpeg_quality: int = 75) -> str:
         """
         Generate a standalone report with all images embedded as base64.
         
@@ -390,14 +393,21 @@ class ReportGenerator:
             logo_url: URL/path to logo image
             client_id: Optional client ID to filter data
             ai_generator: Optional AITemplateGenerator instance for exec summary
-            
+            optimize_images: If True, resize and re-encode non-logo images
+                via Pillow to keep attachment sizes small (intended for emails).
+            image_max_width: Maximum width in pixels when optimize_images is True.
+            image_jpeg_quality: JPEG quality (1-95) when optimize_images is True.
+
         Returns:
             Rendered HTML report with base64-embedded images
         """
         import re
         import base64
         import os
-        
+        import logging as _logging
+
+        from .image_optimizer import is_logo_src, optimize_image_bytes
+
         # Generate report normally first
         html = self.generate_report(
             template_html,
@@ -411,69 +421,116 @@ class ReportGenerator:
         
         # Find all img tags with src attributes
         img_pattern = re.compile(r'<img([^>]+)src=["\']([^"\']+)["\']([^>]*)>', re.IGNORECASE)
-        
+
+        # Per-render cache: avoid fetching/optimizing the same URL more than
+        # once when a template references it multiple times (e.g. when oldest
+        # and newest screenshots are the same snapshot).
+        image_cache: Dict[str, tuple] = {}
+
+        # Stats for logging when optimization is enabled.
+        stats = {
+            'total_images': 0,
+            'optimized_images': 0,
+            'bytes_before': 0,
+            'bytes_after': 0,
+        }
+
         def replace_image(match):
             """Replace image src with base64 data URL"""
             before_src = match.group(1)
             src_url = match.group(2)
             after_src = match.group(3)
-            
+
             try:
-                # Determine if local file or remote URL
-                if src_url.startswith(('http://', 'https://')):
-                    # Remote URL - fetch it
-                    try:
-                        import requests
-                        response = requests.get(src_url, timeout=10)
-                        response.raise_for_status()
-                        image_data = response.content
-                        
-                        # Try to determine content type from headers
-                        content_type = response.headers.get('content-type', '')
-                        if 'image/' in content_type:
-                            mime_type = content_type.split(';')[0]
-                        else:
-                            mime_type = self._get_mime_type_from_url(src_url)
-                    except Exception as e:
-                        import logging
-                        logging.warning(f"Failed to fetch remote image {src_url}: {e}")
-                        return match.group(0)  # Return original if fetch fails
-                        
-                elif src_url.startswith('/'):
-                    # Local absolute path - convert to filesystem path
-                    # Remove leading slash and resolve relative to workspace
-                    workspace_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    file_path = os.path.join(workspace_path, src_url.lstrip('/'))
-                    
-                    if not os.path.exists(file_path):
-                        import logging
-                        logging.warning(f"Image file not found: {file_path}")
-                        return match.group(0)  # Return original if file not found
-                    
-                    with open(file_path, 'rb') as f:
-                        image_data = f.read()
-                    
-                    mime_type = self._get_mime_type_from_url(src_url)
-                    
+                if src_url in image_cache:
+                    image_data, mime_type = image_cache[src_url]
                 else:
-                    # Relative path or other - skip
-                    return match.group(0)
-                
+                    # Determine if local file or remote URL
+                    if src_url.startswith(('http://', 'https://')):
+                        # Remote URL - fetch it
+                        try:
+                            import requests
+                            response = requests.get(src_url, timeout=10)
+                            response.raise_for_status()
+                            image_data = response.content
+
+                            # Try to determine content type from headers
+                            content_type = response.headers.get('content-type', '')
+                            if 'image/' in content_type:
+                                mime_type = content_type.split(';')[0]
+                            else:
+                                mime_type = self._get_mime_type_from_url(src_url)
+                        except Exception as e:
+                            _logging.warning(f"Failed to fetch remote image {src_url}: {e}")
+                            return match.group(0)  # Return original if fetch fails
+
+                    elif src_url.startswith('/'):
+                        # Local absolute path - convert to filesystem path
+                        # Remove leading slash and resolve relative to workspace
+                        workspace_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                        file_path = os.path.join(workspace_path, src_url.lstrip('/'))
+
+                        if not os.path.exists(file_path):
+                            _logging.warning(f"Image file not found: {file_path}")
+                            return match.group(0)  # Return original if file not found
+
+                        with open(file_path, 'rb') as f:
+                            image_data = f.read()
+
+                        mime_type = self._get_mime_type_from_url(src_url)
+
+                    else:
+                        # Relative path or other - skip
+                        return match.group(0)
+
+                    original_bytes = len(image_data)
+
+                    # Optimize remote/non-logo images when requested. Logos and
+                    # local static assets are left at full fidelity (they're
+                    # already tiny and we want them crisp).
+                    if optimize_images and not is_logo_src(src_url):
+                        image_data, mime_type = optimize_image_bytes(
+                            image_data,
+                            max_width=image_max_width,
+                            jpeg_quality=image_jpeg_quality,
+                            source_mime=mime_type,
+                        )
+                        stats['optimized_images'] += 1
+                        stats['bytes_before'] += original_bytes
+                        stats['bytes_after'] += len(image_data)
+
+                    image_cache[src_url] = (image_data, mime_type)
+
+                stats['total_images'] += 1
+
                 # Convert to base64
                 base64_data = base64.b64encode(image_data).decode('utf-8')
                 data_url = f'data:{mime_type};base64,{base64_data}'
-                
+
                 # Return img tag with data URL
                 return f'<img{before_src}src="{data_url}"{after_src}>'
-                
+
             except Exception as e:
-                import logging
-                logging.error(f"Error converting image {src_url} to base64: {e}")
+                _logging.error(f"Error converting image {src_url} to base64: {e}")
                 return match.group(0)  # Return original on any error
-        
+
         # Replace all images
         html_with_base64 = img_pattern.sub(replace_image, html)
-        
+
+        if optimize_images and stats['optimized_images'] > 0:
+            before_mb = stats['bytes_before'] / (1024 * 1024)
+            after_mb = stats['bytes_after'] / (1024 * 1024)
+            if stats['bytes_before'] > 0:
+                reduction = 100.0 * (1.0 - stats['bytes_after'] / stats['bytes_before'])
+            else:
+                reduction = 0.0
+            _logging.info(
+                "optimize_images: %d images, %.1f MB -> %.1f MB "
+                "(%.0f%% reduction) [max_width=%d, quality=%d]",
+                stats['optimized_images'], before_mb, after_mb, reduction,
+                image_max_width, image_jpeg_quality,
+            )
+
         return html_with_base64
     
     @staticmethod
