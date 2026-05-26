@@ -40,15 +40,20 @@ def list_all_api_keys() -> List[Dict[str, Any]]:
                 **stats
             })
         except Exception as e:
-            # If we can't read the database, still show the key
+            # If we can't read the database, still show the key with default values
+            db_size = get_file_size(db_path)
             api_keys.append({
                 'hash': api_key_hash,
                 'hash_short': api_key_hash[:8],
                 'error': str(e),
-                'db_size': get_file_size(db_path)
+                'db_size': db_size,
+                'total_size': db_size,
+                'total_records': 0,
+                'last_sync': None,
+                'auto_sync_enabled': False
             })
     
-    return sorted(api_keys, key=lambda x: x.get('last_sync', ''), reverse=True)
+    return sorted(api_keys, key=lambda x: x.get('last_sync') or '', reverse=True)
 
 
 def get_key_stats(api_key_hash: str) -> Dict[str, Any]:
