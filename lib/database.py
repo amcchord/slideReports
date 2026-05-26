@@ -606,6 +606,32 @@ Report generated at {{ generated_at }} ({{ timezone }})"""
                 VALUES (?, ?, ?)
             """, (key, value, datetime.utcnow().isoformat()))
     
+    def delete_preference(self, key: str):
+        """Delete a user preference row. No-op if it does not exist."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM user_preferences WHERE key = ?", (key,))
+    
+    def claim_preference_once(self, key: str, value: str) -> bool:
+        """Atomically claim a preference row.
+
+        Inserts (key, value) only if the key is not already set. Returns True
+        if this caller won the claim (the row was inserted), False if another
+        caller already holds it.
+
+        Used by the email scheduler to guarantee the "Slide API key disabled"
+        alert is sent at most once per disabled episode, even across racing
+        scheduler ticks or processes.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            now = datetime.utcnow().isoformat()
+            cursor.execute("""
+                INSERT OR IGNORE INTO user_preferences (key, value, updated_at)
+                VALUES (?, ?, ?)
+            """, (key, value, now))
+            return cursor.rowcount == 1
+    
     def update_sync_status(self, resource_type: str, status: str, 
                           items_synced: int = 0, error_message: Optional[str] = None):
         """Update sync status for a resource type"""

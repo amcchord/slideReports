@@ -175,6 +175,15 @@ def setup():
                         db = Database(get_database_path(api_key_hash))
                         db.store_encrypted_api_key(api_key_hash, encrypted_key)
                         
+                        # Belt-and-suspenders: clear any prior "disabled"
+                        # markers so emails resume immediately. The primary
+                        # recovery path is background_sync clearing these on
+                        # its next successful run, but if the user lands here
+                        # with a working key we should not make them wait.
+                        db.set_preference('api_key_status', 'valid')
+                        db.delete_preference('api_key_disabled_at')
+                        db.delete_preference('api_key_disabled_alert_sent_at')
+                        
                         # Set cookie and redirect
                         response = redirect(url_for('dashboard'))
                         response.set_cookie(
@@ -223,6 +232,14 @@ def api_setup():
     api_key_hash = Encryption.hash_api_key(api_key)
     db = Database(get_database_path(api_key_hash))
     db.store_encrypted_api_key(api_key_hash, encrypted_key)
+    
+    # Belt-and-suspenders: clear any prior "disabled" markers so the email
+    # scheduler resumes sending immediately. The primary recovery path is
+    # background_sync clearing these on its next successful run, but if the
+    # user pasted a working key here we should not make them wait.
+    db.set_preference('api_key_status', 'valid')
+    db.delete_preference('api_key_disabled_at')
+    db.delete_preference('api_key_disabled_alert_sent_at')
     
     response = jsonify({'success': True})
     response.set_cookie(

@@ -377,6 +377,21 @@ Report generated at {{ generated_at }} ({{ timezone }})"""
             """, (now,))
             return [dict(row) for row in cursor.fetchall()]
     
+    def get_enabled_recipient_emails(self) -> List[str]:
+        """Return the distinct set of recipient emails across enabled schedules.
+        
+        Used to send the one-time "Slide API key disabled" alert. Each
+        recipient gets at most one alert per disabled episode, regardless of
+        how many schedules they're on.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT email_address FROM email_schedules
+                WHERE enabled = 1 AND email_address IS NOT NULL AND email_address != ''
+            """)
+            return [row['email_address'] for row in cursor.fetchall()]
+    
     def update_after_run(self, schedule_id: int, success: bool, 
                         error_message: Optional[str] = None,
                         timezone: str = 'America/New_York'):

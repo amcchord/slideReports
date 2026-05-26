@@ -13,11 +13,16 @@ from .report_generator import ReportGenerator
 from .email_service import EmailService
 from .pdf_service import PDFService
 from .email_builder import build_email_attachments, EmailTooLargeError
+from .slide_api import InvalidAPIKeyError
 import glob
 import pytz
 from datetime import timedelta
 
 logger = logging.getLogger(__name__)
+
+DISABLED_KEY_ERROR_MESSAGE = (
+    "Slide API key disabled - re-enable it in the Slide UI to resume reports"
+)
 
 
 class EmailScheduler:
@@ -89,12 +94,116 @@ class EmailScheduler:
             # Get schedules due for execution
             due_schedules = esm.get_schedules_due()
             
+            # If the Slide API key has been flagged disabled (a previous sync
+            # got 401/403), skip all sends for this account and instead send
+            # the one-time alert. We do this BEFORE iterating schedules so the
+            # alert is claimed atomically before any per-schedule work.
+            api_key_status = db.get_preference('api_key_status', 'valid')
+            if api_key_status == 'disabled':
+                if due_schedules:
+                    self._maybe_send_disabled_key_alert(db, esm, api_key_hash)
+                    for schedule in due_schedules:
+                        self._handle_disabled_key_skip(db, esm, schedule, timezone)
+                return
+            
             for schedule in due_schedules:
                 logger.info(f"Executing schedule {schedule['schedule_id']} for {api_key_hash[:8]}")
                 self._execute_schedule(api_key_hash, schedule, timezone)
         
         except Exception as e:
             logger.error(f"Error checking schedules for {api_key_hash[:8]}: {e}", exc_info=True)
+    
+    def _handle_disabled_key_skip(self, db: Database, esm: EmailScheduleManager,
+                                   schedule: dict, timezone: str):
+        """Skip a single due schedule because the API key is disabled.
+        
+        Logs the attempt as failed in email_send_log and advances
+        next_run_at so we don't re-execute the same schedule on every
+        5-minute tick.
+        """
+        try:
+            self._log_email_send(db, schedule['schedule_id'],
+                                 schedule['email_address'],
+                                 'failed', DISABLED_KEY_ERROR_MESSAGE, None)
+            esm.update_after_run(schedule['schedule_id'], False,
+                                 DISABLED_KEY_ERROR_MESSAGE, timezone)
+            logger.info(
+                f"Skipped schedule {schedule['schedule_id']} -- API key disabled"
+            )
+        except Exception as e:
+            logger.error(
+                f"Error recording skip for schedule {schedule.get('schedule_id')}: {e}",
+                exc_info=True,
+            )
+    
+    def _maybe_send_disabled_key_alert(self, db: Database,
+                                        esm: EmailScheduleManager,
+                                        api_key_hash: str):
+        """Send the one-time 'Slide API key disabled' alert email.
+        
+        Uses an atomic claim_preference_once() against api_key_disabled_alert_sent_at
+        BEFORE any Postmark call. If another scheduler tick already claimed
+        the alert, this is a no-op. This is the once-only guarantee: we will
+        never spam recipients, even across racing ticks or process restarts.
+        
+        The flag is cleared by background_sync._run_sync on the next
+        successful sync, so a future disabled episode can alert again.
+        """
+        claimed = db.claim_preference_once(
+            'api_key_disabled_alert_sent_at',
+            datetime.utcnow().isoformat(),
+        )
+        if not claimed:
+            return
+        
+        recipients = esm.get_enabled_recipient_emails()
+        if not recipients:
+            logger.info(
+                f"API key disabled for {api_key_hash[:8]} but no enabled "
+                f"schedule recipients -- nothing to alert"
+            )
+            return
+        
+        subject = "Action required: Your Slide API key has been disabled"
+        body = (
+            "Hi,\n\n"
+            "We tried to generate your scheduled Slide backup report, but the "
+            "Slide API key associated with this account has been disabled and "
+            "our requests are being rejected.\n\n"
+            "Your scheduled reports are paused. To resume them, please "
+            "re-enable (or regenerate) the API key in the Slide UI. Once the "
+            "key is working again, your reports will automatically resume on "
+            "the next scheduled run -- you do not need to do anything in "
+            "reports.slide.recipes.\n\n"
+            "You will not receive another email about this until the key "
+            "starts working again, so we won't be spamming you.\n\n"
+            "-- reports.slide.recipes\n"
+        )
+        
+        for recipient in recipients:
+            try:
+                success, message = self.email_service.send_report_email(
+                    to_email=recipient,
+                    subject=subject,
+                    text_body=body,
+                    pdf_content=None,
+                    pdf_filename=None,
+                    html_content=None,
+                    html_filename=None,
+                )
+                if success:
+                    logger.info(
+                        f"Sent disabled-API-key alert to {recipient} for {api_key_hash[:8]}"
+                    )
+                else:
+                    logger.error(
+                        f"Postmark rejected disabled-API-key alert to {recipient}: {message}"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Exception sending disabled-API-key alert to {recipient}: {e}",
+                    exc_info=True,
+                )
     
     def _sync_before_email(self, api_key_hash: str, db: Database):
         """Sync data with API before sending scheduled email"""
@@ -155,8 +264,13 @@ class EmailScheduler:
                 if status == 'completed':
                     logger.info(f"Pre-email sync completed successfully for {api_key_hash[:8]}")
                     break
-                elif status == 'failed':
-                    logger.warning(f"Pre-email sync failed for {api_key_hash[:8]}")
+                elif status in ('failed', 'error'):
+                    # background_sync sets 'error' on failure; accept both
+                    # so we react promptly instead of waiting out the timeout.
+                    logger.warning(
+                        f"Pre-email sync ended with status={status} for {api_key_hash[:8]}: "
+                        f"{sync_state.get('error')}"
+                    )
                     break
                 elif status != 'syncing':
                     # Unknown status, break
@@ -166,6 +280,14 @@ class EmailScheduler:
                 logger.warning(f"Pre-email sync timeout after {max_wait_seconds}s for {api_key_hash[:8]}")
         else:
             logger.warning(f"Failed to start pre-email sync for {api_key_hash[:8]}")
+        
+        # If background_sync flagged the API key as disabled during this
+        # sync, surface that to the caller so the schedule run is aborted
+        # cleanly (instead of falling through to send stale data).
+        if db.get_preference('api_key_status', 'valid') == 'disabled':
+            raise InvalidAPIKeyError(
+                401, "Slide API key disabled during pre-email sync"
+            )
     
     def _execute_schedule(self, api_key_hash: str, schedule: dict, timezone: str):
         """Execute a single email schedule"""
@@ -177,7 +299,17 @@ class EmailScheduler:
             # Sync data before sending scheduled email
             logger.info(f"Syncing data before sending scheduled email for {api_key_hash[:8]}")
             self._sync_before_email(api_key_hash, db)
-            
+        except InvalidAPIKeyError:
+            # Pre-sync detected that the Slide API key is disabled. Skip this
+            # send (and any others for this account) instead of mailing stale
+            # data. Trigger the one-time alert if it hasn't already been sent.
+            logger.warning(
+                f"API key disabled for {api_key_hash[:8]}; skipping schedule "
+                f"{schedule['schedule_id']} and any other due schedules"
+            )
+            self._maybe_send_disabled_key_alert(db, esm, api_key_hash)
+            self._handle_disabled_key_skip(db, esm, schedule, timezone)
+            return
         except Exception as sync_error:
             logger.warning(f"Sync failed before sending email for {api_key_hash[:8]}: {sync_error}")
             # Continue with email even if sync fails - use existing data

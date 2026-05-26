@@ -8,6 +8,19 @@ from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime, timedelta
 
 
+class InvalidAPIKeyError(Exception):
+    """Raised when the Slide API rejects the API key with 401/403.
+
+    Distinct from a generic requests.HTTPError so callers (background sync,
+    email scheduler) can mark the per-account API key as disabled and stop
+    sending emails until the user re-enables the key in the Slide UI.
+    """
+
+    def __init__(self, status_code: int, message: str = ""):
+        self.status_code = status_code
+        super().__init__(message or f"Slide API key rejected (HTTP {status_code})")
+
+
 class SlideAPIClient:
     """Client for interacting with the Slide API"""
     
@@ -63,6 +76,13 @@ class SlideAPIClient:
             # Rate limited - wait and retry
             time.sleep(1)
             return self._make_request(method, endpoint, params, json_data)
+        
+        if response.status_code in (401, 403):
+            # Auth failure. Surface this as a distinct exception so callers
+            # can mark the API key as disabled rather than treating it as a
+            # generic transient HTTP error.
+            raise InvalidAPIKeyError(response.status_code,
+                                     f"Slide API rejected the key ({response.status_code})")
         
         response.raise_for_status()
         
@@ -277,6 +297,6 @@ class SlideAPIClient:
         try:
             self._make_request('GET', 'device', params={'limit': 1})
             return True
-        except requests.HTTPError:
+        except (requests.HTTPError, InvalidAPIKeyError):
             return False
 

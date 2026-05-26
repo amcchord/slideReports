@@ -7,7 +7,7 @@ import os
 import threading
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from .slide_api import SlideAPIClient
+from .slide_api import SlideAPIClient, InvalidAPIKeyError
 from .sync import SyncEngine
 from .database import Database, get_database_path
 
@@ -156,6 +156,16 @@ class BackgroundSyncManager:
             
             logger.info(f"Sync completed successfully for {api_key_hash[:8]}")
             
+            # The Slide API accepted our key, so any prior "disabled" episode
+            # is over. Clear the disabled flag and the alert-sent marker so a
+            # future disabled episode can alert recipients exactly once again.
+            try:
+                db.set_preference('api_key_status', 'valid')
+                db.delete_preference('api_key_disabled_at')
+                db.delete_preference('api_key_disabled_alert_sent_at')
+            except Exception as e:
+                logger.error(f"Failed to clear disabled markers for {api_key_hash[:8]}: {e}")
+            
             # Prune old snapshot records (older than 90 days)
             pruned_count = 0
             try:
@@ -179,6 +189,34 @@ class BackgroundSyncManager:
                 'results': results,
                 'pruned_snapshots': pruned_count
             })
+        except InvalidAPIKeyError as e:
+            logger.warning(
+                f"Slide API key disabled for {api_key_hash[:8]} (HTTP {e.status_code}); "
+                f"marking key disabled and aborting sync"
+            )
+            
+            # Persist the disabled flag so the email scheduler can stop
+            # sending stale reports and trigger the one-time alert.
+            try:
+                db = Database(get_database_path(api_key_hash))
+                db.set_preference('api_key_status', 'disabled')
+                db.set_preference('api_key_disabled_at', datetime.utcnow().isoformat())
+            except Exception as pref_error:
+                logger.error(f"Failed to persist api_key_status=disabled for {api_key_hash[:8]}: {pref_error}")
+            
+            # Mark the sync state as error so callers waiting on it (e.g.
+            # _sync_before_email) can stop waiting and react.
+            try:
+                self.update_sync_state(api_key_hash, {
+                    'status': 'error',
+                    'started_at': None,
+                    'current_source': None,
+                    'progress': {},
+                    'error': 'Slide API key disabled',
+                    'error_at': datetime.utcnow().isoformat() + 'Z'
+                })
+            except Exception as state_error:
+                logger.error(f"Failed to update error state: {state_error}")
         except Exception as e:
             logger.error(f"Sync failed for {api_key_hash[:8]}: {e}", exc_info=True)
             

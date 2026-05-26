@@ -5,7 +5,7 @@ Provides progress tracking for UI feedback.
 import logging
 from typing import Dict, List, Optional, Callable, Any
 from datetime import datetime, timedelta
-from .slide_api import SlideAPIClient
+from .slide_api import SlideAPIClient, InvalidAPIKeyError
 from .database import Database
 
 logger = logging.getLogger(__name__)
@@ -156,6 +156,11 @@ class SyncEngine:
                 result = self._sync_source(source, start_date, progress_callback)
                 results['sources'][source] = result
                 results['total_items'] += result['items_synced']
+            except InvalidAPIKeyError:
+                # API key is disabled/revoked. No point continuing to hit
+                # other endpoints that will all 401 -- bubble up so the
+                # caller can mark the key disabled and abort.
+                raise
             except Exception as e:
                 error_msg = f"Error syncing {source}: {str(e)}"
                 logger.error(error_msg, exc_info=True)
