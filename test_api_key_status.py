@@ -3,6 +3,7 @@ import sys
 import tempfile
 import types
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -16,7 +17,7 @@ pdf_service_stub.PDFService = MagicMock
 sys.modules['lib.pdf_service'] = pdf_service_stub
 
 from lib.email_scheduler import EmailScheduler
-from lib.database import list_account_database_hashes
+from lib.database import Database, list_account_database_hashes
 from lib.slide_api import InvalidAPIKeyError, SlideAPIClient
 
 
@@ -128,6 +129,28 @@ class AccountDatabaseDiscoveryTests(unittest.TestCase):
             self.assertEqual(
                 list_account_database_hashes(data_dir),
                 ['0123456789abcdef', 'fedcba9876543210'],
+            )
+
+    def test_snapshot_pruning_deletes_only_records_older_than_cutoff(self):
+        with tempfile.TemporaryDirectory() as data_dir:
+            database = Database(str(Path(data_dir, '0123456789abcdef.db')))
+            old_date = (datetime.utcnow() - timedelta(days=91)).isoformat()
+            recent_date = (datetime.utcnow() - timedelta(days=1)).isoformat()
+
+            with database.get_connection() as connection:
+                connection.executemany(
+                    'INSERT INTO snapshots (snapshot_id, backup_started_at) VALUES (?, ?)',
+                    [
+                        ('old-snapshot', old_date),
+                        ('recent-snapshot', recent_date),
+                    ],
+                )
+
+            self.assertEqual(database.prune_old_snapshots(days=90), 1)
+            remaining = database.get_records('snapshots')
+            self.assertEqual(
+                [row['snapshot_id'] for row in remaining],
+                ['recent-snapshot'],
             )
 
 
