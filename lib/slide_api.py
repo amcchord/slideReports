@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 
 class InvalidAPIKeyError(Exception):
-    """Raised when the Slide API rejects the API key with 401/403.
+    """Raised when Slide's baseline endpoint rejects the key with 401/403.
 
     Distinct from a generic requests.HTTPError so callers (background sync,
     email scheduler) can mark the per-account API key as disabled and stop
@@ -49,6 +49,33 @@ class SlideAPIClient:
         if elapsed < self.RATE_LIMIT_DELAY:
             time.sleep(self.RATE_LIMIT_DELAY - elapsed)
         self.last_request_time = time.time()
+
+    def _key_is_rejected(self) -> Optional[bool]:
+        """Confirm whether Slide rejects the key on a baseline endpoint.
+
+        Slide can return 401/403 for an individual endpoint that the key is
+        not permitted to use.  GET /device is also the endpoint used by
+        test_connection(), so use it to distinguish an invalid key from an
+        endpoint-specific authorization failure.
+
+        Returns True when the baseline endpoint rejects the key, False when
+        it accepts the key, and None when the result is inconclusive.
+        """
+        self._rate_limit()
+        url = f"{self.BASE_URL}/device"
+
+        try:
+            response = self.session.request('GET', url, params={'limit': 1})
+        except requests.RequestException:
+            return None
+
+        if response.status_code in (401, 403):
+            return True
+
+        if 200 <= response.status_code < 300:
+            return False
+
+        return None
     
     def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None,
                      json_data: Optional[Dict] = None) -> Dict[str, Any]:
@@ -66,6 +93,7 @@ class SlideAPIClient:
             
         Raises:
             requests.HTTPError: If request fails
+            InvalidAPIKeyError: If the baseline endpoint rejects the API key
         """
         self._rate_limit()
         
@@ -78,11 +106,24 @@ class SlideAPIClient:
             return self._make_request(method, endpoint, params, json_data)
         
         if response.status_code in (401, 403):
-            # Auth failure. Surface this as a distinct exception so callers
-            # can mark the API key as disabled rather than treating it as a
-            # generic transient HTTP error.
-            raise InvalidAPIKeyError(response.status_code,
-                                     f"Slide API rejected the key ({response.status_code})")
+            endpoint_path = endpoint.lstrip('/').split('?', 1)[0]
+
+            # A rejection from the baseline endpoint is direct evidence that
+            # the key itself is invalid. For every other endpoint, confirm
+            # against /device before disabling the entire account. If the
+            # confirmation succeeds or is inconclusive, raise the original
+            # HTTP error so sync_all records only this source as failed.
+            key_is_rejected = True
+            if endpoint_path != 'device':
+                key_is_rejected = self._key_is_rejected()
+
+            if key_is_rejected is True:
+                raise InvalidAPIKeyError(
+                    response.status_code,
+                    f"Slide API rejected the key ({response.status_code})",
+                )
+
+            response.raise_for_status()
         
         response.raise_for_status()
         
@@ -299,4 +340,3 @@ class SlideAPIClient:
             return True
         except (requests.HTTPError, InvalidAPIKeyError):
             return False
-

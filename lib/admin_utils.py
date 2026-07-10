@@ -2,10 +2,9 @@
 Admin utilities for managing API keys and system data.
 """
 import os
-import glob
 import json
 from typing import List, Dict, Any, Optional
-from .database import Database, get_database_path
+from .database import Database, get_database_path, list_account_database_hashes
 
 
 def list_all_api_keys() -> List[Dict[str, Any]]:
@@ -20,17 +19,9 @@ def list_all_api_keys() -> List[Dict[str, Any]]:
     if not os.path.exists(data_dir):
         return []
     
-    # Find all main database files
-    db_files = glob.glob(os.path.join(data_dir, '*[!_templates].db'))
-    
     api_keys = []
-    
-    for db_path in db_files:
-        filename = os.path.basename(db_path)
-        if filename.endswith('_templates.db'):
-            continue
-        
-        api_key_hash = filename.replace('.db', '')
+    for api_key_hash in list_account_database_hashes(data_dir):
+        db_path = os.path.join(data_dir, f'{api_key_hash}.db')
         
         try:
             stats = get_key_stats(api_key_hash)
@@ -215,17 +206,9 @@ def list_all_email_schedules() -> List[Dict[str, Any]]:
     if not os.path.exists(data_dir):
         return []
     
-    # Find all main database files
-    db_files = glob.glob(os.path.join(data_dir, '*[!_templates].db'))
-    
     all_schedules = []
-    
-    for db_path in db_files:
-        filename = os.path.basename(db_path)
-        if filename.endswith('_templates.db'):
-            continue
-        
-        api_key_hash = filename.replace('.db', '')
+    for api_key_hash in list_account_database_hashes(data_dir):
+        db_path = os.path.join(data_dir, f'{api_key_hash}.db')
         
         try:
             esm = EmailScheduleManager(db_path)
@@ -287,5 +270,4 @@ def delete_email_schedule(api_key_hash: str, schedule_id: int) -> bool:
         import logging
         logging.error(f"Error deleting schedule: {e}")
         return False
-
 
