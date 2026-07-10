@@ -5,9 +5,13 @@ Each user gets their own isolated SQLite database.
 import sqlite3
 import json
 import os
+import re
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
+
+
+ACCOUNT_DATABASE_FILENAME = re.compile(r'^(?P<api_key_hash>[0-9a-f]{16})\.db$')
 
 
 class Database:
@@ -910,3 +914,22 @@ def get_database_path(api_key_hash: str) -> str:
     base_dir = os.environ.get('DATA_DIR', '/var/www/reports.slide.recipes/data')
     return os.path.join(base_dir, f"{api_key_hash}.db")
 
+
+def list_account_database_hashes(data_dir: str) -> List[str]:
+    """List canonical per-account database hashes in a data directory.
+
+    The current API-key hash format is exactly 16 lowercase hexadecimal
+    characters. Ignoring other SQLite files prevents schedulers and admin
+    views from treating templates, backups, and legacy databases as active
+    customer accounts.
+    """
+    if not os.path.isdir(data_dir):
+        return []
+
+    api_key_hashes = []
+    for filename in os.listdir(data_dir):
+        match = ACCOUNT_DATABASE_FILENAME.fullmatch(filename)
+        if match:
+            api_key_hashes.append(match.group('api_key_hash'))
+
+    return sorted(api_key_hashes)

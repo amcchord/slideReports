@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from .database import Database, get_database_path
+from .database import Database, get_database_path, list_account_database_hashes
 from .email_schedules import EmailScheduleManager
 from .templates import TemplateManager
 from .report_generator import ReportGenerator
@@ -14,7 +14,6 @@ from .email_service import EmailService
 from .pdf_service import PDFService
 from .email_builder import build_email_attachments, EmailTooLargeError
 from .slide_api import InvalidAPIKeyError
-import glob
 import pytz
 from datetime import timedelta
 
@@ -68,11 +67,7 @@ class EmailScheduler:
             if not os.path.exists(self.data_dir):
                 return
             
-            db_files = [f for f in os.listdir(self.data_dir) 
-                       if f.endswith('.db') and not f.endswith('_templates.db')]
-            
-            for db_file in db_files:
-                api_key_hash = db_file.replace('.db', '')
+            for api_key_hash in list_account_database_hashes(self.data_dir):
                 self._check_and_send_for_key(api_key_hash)
         
         except Exception as e:
@@ -94,18 +89,11 @@ class EmailScheduler:
             # Get schedules due for execution
             due_schedules = esm.get_schedules_due()
             
-            # If the Slide API key has been flagged disabled (a previous sync
-            # got 401/403), skip all sends for this account and instead send
-            # the one-time alert. We do this BEFORE iterating schedules so the
-            # alert is claimed atomically before any per-schedule work.
-            api_key_status = db.get_preference('api_key_status', 'valid')
-            if api_key_status == 'disabled':
-                if due_schedules:
-                    self._maybe_send_disabled_key_alert(db, esm, api_key_hash)
-                    for schedule in due_schedules:
-                        self._handle_disabled_key_skip(db, esm, schedule, timezone)
-                return
-            
+            # Always let a due schedule retry its pre-email sync. A stored
+            # disabled marker can be stale or based on an endpoint-specific
+            # rejection. The sync clears the marker when the baseline API
+            # check succeeds, while a genuinely invalid key is still caught
+            # and skipped by _execute_schedule below.
             for schedule in due_schedules:
                 logger.info(f"Executing schedule {schedule['schedule_id']} for {api_key_hash[:8]}")
                 self._execute_schedule(api_key_hash, schedule, timezone)
@@ -465,4 +453,3 @@ Report generated at {{ generated_at }} ({{ timezone }})'''))
 
 # Global scheduler instance (will be initialized in app.py)
 email_scheduler = None
-

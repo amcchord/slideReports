@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class AITemplateGenerator:
     """Generate report templates using Claude AI"""
     
-    MODEL = "claude-sonnet-4-20250514"  # Update to actual model name when needed
+    MODEL = "claude-sonnet-5"
     
     def __init__(self, api_key: str):
         """
@@ -562,4 +562,3 @@ Focus on telling a clear story that an auditor would find valuable. No bullets o
         )
         
         return message.content[0].text.strip()
-

@@ -7,7 +7,7 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from .background_sync import background_sync
-from .database import Database, get_database_path
+from .database import Database, get_database_path, list_account_database_hashes
 from .encryption import Encryption
 
 logger = logging.getLogger(__name__)
@@ -53,10 +53,7 @@ class AutoSyncScheduler:
             if not os.path.exists(self.data_dir):
                 return
             
-            db_files = [f for f in os.listdir(self.data_dir) if f.endswith('.db') and not f.endswith('_templates.db')]
-            
-            for db_file in db_files:
-                api_key_hash = db_file.replace('.db', '')
+            for api_key_hash in list_account_database_hashes(self.data_dir):
                 self._check_and_sync_key(api_key_hash)
         
         except Exception as e:
@@ -145,5 +142,4 @@ class AutoSyncScheduler:
 
 # Global scheduler instance
 auto_sync_scheduler = AutoSyncScheduler()
-
 
