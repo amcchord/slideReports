@@ -1088,7 +1088,7 @@ def _get_base_template_html() -> str:
                                 <div style="color: #059669;">{{ day.cloud_snapshots }} Cloud Snap</div>
                             </div>
                             <div style="font-size: 9px; margin-top: 2px; font-weight: 600; opacity: 0.8;">
-                                {% if day.snapshots_created > 0 %}{{ day.snapshots_created }} backups taken{% if day.snapshots_created != 1 %}s{% endif %}{% else %}-{% endif %}
+                                {% if day.snapshots_created > 0 %}{{ day.snapshots_created }} backup{% if day.snapshots_created != 1 %}s taken {% endif %}{% else %}-{% endif %}
                             </div>
 
                             {% endif %}
