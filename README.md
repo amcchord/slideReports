@@ -7,7 +7,7 @@ A Flask-based web application for generating customizable reports about Slide ba
 
 🌐 **Live Demo:** Check it out at [https://reports.slide.recipes](https://reports.slide.recipes)
 
-🔑 **Test API Key:** `tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL`
+🔑 **Test API Key:** `YOUR_SLIDE_API_KEY`
 
 
 
@@ -142,7 +142,7 @@ https://reports.slide.recipes/setup?api_key=YOUR_API_KEY
 
 **Try the demo:**
 ```
-https://reports.slide.recipes/setup?api_key=tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL
+https://reports.slide.recipes/setup?api_key=YOUR_SLIDE_API_KEY
 ```
 
 This feature:
@@ -548,7 +548,7 @@ The application uses a modern, professional design system:
 
 Test with the provided Slide API key:
 ```
-tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL
+YOUR_SLIDE_API_KEY
 ```
 
 **View a sample report:** [docs/testReport.html](docs/testReport.html)
@@ -678,3 +678,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+## September 2026 modernization
+
+See [the modernization notes](docs/modernization.md) for scope, API behavior, validation, and deployment considerations.

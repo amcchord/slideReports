@@ -150,17 +150,14 @@ def index():
 @app.route('/setup')
 def setup():
     """API key setup page with auto-login support"""
-    # Define the special key that can always auto-login
-    SPECIAL_KEY = 'tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL'
-    
     # Check for auto-login via URL parameter
     api_key_param = request.args.get('api_key')
     
     if api_key_param:
-        # Check security: allow if no existing cookie OR if it's the special key
+        # Existing sessions must explicitly disconnect before changing accounts.
         existing_key, _ = get_api_key_from_cookie()
         
-        if not existing_key or api_key_param == SPECIAL_KEY:
+        if not existing_key:
             # Validate API key format
             if Encryption.validate_api_key_format(api_key_param):
                 # Test API key

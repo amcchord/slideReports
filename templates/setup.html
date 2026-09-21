@@ -5,12 +5,12 @@
 {% block title %}Setup - Slide Reports{% endblock %}
 
 {% block content_fullwidth %}
-<div class="container" style="max-width: 600px; margin-top: 100px;">
-    <div class="card">
+<div class="container setup-container" style="max-width: 540px; margin-top: 70px;">
+    <a class="recipes-link" href="https://slide.recipes">← Recipes workspace</a><div class="card" style="margin-top:20px">
         <div class="card-body text-center">
-            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Slide" style="max-width: 200px; margin-bottom: 2rem;">
+            <img src="{{ url_for('static', filename='slide-mark.svg') }}" alt="Slide" style="width: 40px; height: 44px; margin-bottom: 1.5rem;">
             
-            <h2 class="card-title">Welcome to Slide Reports</h2>
+            <h2 class="card-title">Client reports, made clear</h2>
             <p class="card-text text-muted mb-4">
                 Enter your Slide API key to get started. You can find your API key in the Slide Console.
             </p>
@@ -18,7 +18,7 @@
             <form id="setup-form">
                 <div class="mb-3 text-start">
                     <label for="api-key" class="form-label">API Key</label>
-                    <input type="text" class="form-control" id="api-key" placeholder="tk_..." required>
+                    <input type="password" autocomplete="off" spellcheck="false" class="form-control" id="api-key" placeholder="tk_..." required>
                     <div class="form-text">Your API key starts with "tk_" and is used to access your Slide data.</div>
                 </div>
                 
@@ -65,7 +65,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ api_key: apiKey })
+                body: JSON.stringify({ api_key: apiKey }),
+                signal: AbortSignal.timeout(45000)
             });
             
             if (response.ok) {

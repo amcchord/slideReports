@@ -23,19 +23,20 @@
             }
             var sidebarCollapsed = localStorage.getItem('sidebarCollapsed');
             if (sidebarCollapsed === 'true') {
-                document.body.classList.add('sidebar-collapsed');
+                document.addEventListener('DOMContentLoaded', function() { document.body.classList.add('sidebar-collapsed'); });
             }
         })();
     </script>
     
     {% block extra_css %}{% endblock %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/console.css') }}?v=1">
 </head>
 <body>
     <div class="app-layout">
         {% if not hide_nav %}
         <!-- Header -->
         <header class="app-header">
-            <div class="app-header-left">
+            <div class="app-header-left"><a class="recipes-link" href="https://slide.recipes">← Recipes</a>
                 <button class="header-btn" id="sidebar-toggle" aria-label="Toggle sidebar">
                     <i class="bi bi-list"></i>
                 </button>
@@ -46,7 +47,7 @@
                     {% if custom_logo_url %}
                     <img src="{{ custom_logo_url }}" alt="Logo">
                     {% else %}
-                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Slide">
+                    <img src="{{ url_for('static', filename='slide-mark.svg') }}" alt="Slide">
                     {% endif %}
                     <span>Slide Reports</span>
                 </a>

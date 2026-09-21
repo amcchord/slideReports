@@ -19,7 +19,7 @@ from lib.slide_api import SlideAPIClient
 from lib.templates import TemplateManager
 
 # Test configuration
-TEST_API_KEY = os.environ.get('TEST_SLIDE_API_KEY', 'tk_hlr3e2d2e7x1_kUqKky4bb3zfefnkKlI8h4GbsNeC8Rx6')
+TEST_API_KEY = os.environ.get('TEST_SLIDE_API_KEY')
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
 
 def test_encryption():
