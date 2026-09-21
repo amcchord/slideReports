@@ -5,12 +5,13 @@ import os
 import json
 import logging
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, redirect, url_for, make_response
+from flask import Flask, render_template, request, jsonify, redirect, url_for, make_response, session
 from dotenv import load_dotenv
 
 from lib.encryption import Encryption
 from lib.database import Database, get_database_path
 from lib.slide_api import SlideAPIClient
+from lib.recipes_handoff import install_handoff
 from lib.sync import SyncEngine
 from lib.templates import TemplateManager
 from lib.ai_generator import AITemplateGenerator
@@ -38,6 +39,13 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config.update(
+    RECIPES_HANDOFF_KEY=os.environ.get('RECIPES_HANDOFF_KEY', ''),
+    SESSION_COOKIE_NAME='slide_reports_session',
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV') == 'production',
+    SESSION_COOKIE_SAMESITE='Lax',
+)
 
 # Initialize encryption
 encryption_key = os.environ.get('ENCRYPTION_KEY')
@@ -138,12 +146,40 @@ def inject_custom_logo():
 
 
 # Routes
+def connected_key_response(api_key, response):
+    """Use the existing Reports cookie and database encryption for either login path."""
+    encrypted_key = encryption.encrypt(api_key)
+    api_key_hash = Encryption.hash_api_key(api_key)
+    db = Database(get_database_path(api_key_hash))
+    db.store_encrypted_api_key(api_key_hash, encrypted_key)
+    db.set_preference('api_key_status', 'valid')
+    db.delete_preference('api_key_disabled_at')
+    db.delete_preference('api_key_disabled_alert_sent_at')
+    response.set_cookie('slide_api_key', encrypted_key, max_age=30*24*60*60,
+                        httponly=True, secure=request.is_secure, samesite='Lax')
+    return response
+
+
+def connect_from_recipes(api_key):
+    if not SlideAPIClient(api_key).test_connection():
+        raise ValueError('Slide key is unavailable')
+    return connected_key_response(api_key, redirect('/dashboard'))
+
+
+should_connect_recipes = install_handoff(
+    app, 'reports', connect_from_recipes, '/setup',
+    os.environ.get('RECIPES_HANDOFF_DB', os.path.join(app.instance_path, 'recipes-handoffs.sqlite3')),
+)
+
+
 @app.route('/')
 def index():
     """Home page - redirect to dashboard or setup"""
     api_key, _ = get_api_key_from_cookie()
     if api_key:
         return redirect(url_for('dashboard'))
+    if should_connect_recipes():
+        return redirect('/connect/recipes')
     return redirect(url_for('setup'))
 
 
@@ -222,33 +258,7 @@ def api_setup():
         logger.error(f"API test failed: {e}")
         return jsonify({'error': 'Failed to validate API key'}), 500
     
-    # Encrypt and set cookie
-    encrypted_key = encryption.encrypt(api_key)
-    
-    # Store encrypted API key in database for auto-sync
-    api_key_hash = Encryption.hash_api_key(api_key)
-    db = Database(get_database_path(api_key_hash))
-    db.store_encrypted_api_key(api_key_hash, encrypted_key)
-    
-    # Belt-and-suspenders: clear any prior "disabled" markers so the email
-    # scheduler resumes sending immediately. The primary recovery path is
-    # background_sync clearing these on its next successful run, but if the
-    # user pasted a working key here we should not make them wait.
-    db.set_preference('api_key_status', 'valid')
-    db.delete_preference('api_key_disabled_at')
-    db.delete_preference('api_key_disabled_alert_sent_at')
-    
-    response = jsonify({'success': True})
-    response.set_cookie(
-        'slide_api_key',
-        encrypted_key,
-        max_age=30*24*60*60,  # 30 days
-        httponly=True,
-        secure=request.is_secure,
-        samesite='Lax'
-    )
-    
-    return response
+    return connected_key_response(api_key, jsonify({'success': True}))
 
 
 @app.route('/dashboard')
@@ -2117,6 +2127,7 @@ def api_template_schema(api_key, api_key_hash):
 def logout():
     """Clear API key cookie"""
     response = redirect(url_for('setup'))
+    session['recipes_attempted'] = True
     response.set_cookie('slide_api_key', '', max_age=0)
     return response
 

@@ -683,3 +683,10 @@ SOFTWARE.
 ## September 2026 modernization
 
 See [the modernization notes](docs/modernization.md) for scope, API behavior, validation, and deployment considerations.
+
+
+## Connect from Recipes
+
+Opening this app from Slide Recipes automatically reuses the connected Slide account through an encrypted, single-use browser handoff. The first unauthenticated home-page visit checks Recipes once, with manual login as the fallback. Set `RECIPES_HANDOFF_KEY` to the app-specific 64-character hex secret configured in the Recipes issuer's private `/etc/slide-recipes/handoff.json`. Keep it out of Git. Reports additionally sets `RECIPES_HANDOFF_DB` to a private writable SQLite path; Chat uses its existing private state directory. Existing app secrets and key-cookie formats must be preserved.
+
+The protocol module is mirrored between `slideChat/chat_core/recipes_handoff.py` and `slideReports/lib/recipes_handoff.py`; test and update both copies together. Handoffs expire after 60 seconds, require browser state and the exact Recipes origin, and can be consumed only once across workers. Raw keys are never placed in handoff URLs.

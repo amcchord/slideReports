@@ -16,6 +16,7 @@
             </p>
             
             <form id="setup-form">
+                {% if config.RECIPES_HANDOFF_KEY %}<a class="btn btn-outline-primary w-100 mb-3" href="/connect/recipes">Continue with Recipes →</a>{% endif %}
                 <div class="mb-3 text-start">
                     <label for="api-key" class="form-label">API Key</label>
                     <input type="password" autocomplete="off" spellcheck="false" class="form-control" id="api-key" placeholder="tk_..." required>
@@ -89,4 +90,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
