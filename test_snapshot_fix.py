@@ -15,7 +15,7 @@ from lib.database import Database, get_database_path
 from lib.encryption import Encryption
 
 # Test API key
-TEST_API_KEY = "tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL"
+TEST_API_KEY = os.environ.get('TEST_SLIDE_API_KEY')
 
 def test_database_version():
     """Test database version tracking"""

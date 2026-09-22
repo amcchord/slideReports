@@ -690,32 +690,37 @@ Report generated at {{ generated_at }} ({{ timezone }})"""
             self._table_columns_cache.clear()
     
     def upsert_record(self, table: str, primary_key: str, data: Dict[str, Any]):
-        """Insert or update a record in a table"""
-        data['synced_at'] = datetime.utcnow().isoformat()
-        data['raw_json'] = json.dumps(data.get('raw_json', {}))
+        """Insert or update one record without modifying the caller's dictionary."""
+        self.upsert_records(table, primary_key, [data])
         
-        # Convert lists/dicts to JSON strings for storage
-        for key, value in data.items():
-            if isinstance(value, (list, dict)) and key != 'raw_json':
-                data[key] = json.dumps(value)
-        
-        # Filter data to only include columns that exist in the table
-        # This prevents errors when API adds new fields not in our schema
+    def upsert_records(self, table: str, primary_key: str, records: List[Dict[str, Any]]):
+        """Commit a bounded sync batch atomically instead of committing every row."""
+        if not records:
+            return
+        if not re.fullmatch(r'[a-z_]+', table) or not re.fullmatch(r'[a-z_]+', primary_key):
+            raise ValueError('Invalid table or primary key')
         valid_columns = self._get_table_columns(table)
-        filtered_data = {k: v for k, v in data.items() if k in valid_columns}
-        
-        columns = ', '.join(filtered_data.keys())
-        placeholders = ', '.join(['?' for _ in filtered_data])
-        update_clause = ', '.join([f"{k} = excluded.{k}" for k in filtered_data.keys()])
-        
+        if primary_key not in valid_columns:
+            raise ValueError('Unknown primary key')
+        synced_at = datetime.utcnow().isoformat()
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"""
-                INSERT INTO {table} ({columns})
-                VALUES ({placeholders})
-                ON CONFLICT({primary_key})
-                DO UPDATE SET {update_clause}
-            """, list(filtered_data.values()))
+            for record in records:
+                if not record.get(primary_key):
+                    raise ValueError(f'Missing {primary_key}')
+                data = dict(record)
+                data['synced_at'] = synced_at
+                data['raw_json'] = json.dumps(data.get('raw_json', {}))
+                for key, value in data.items():
+                    if isinstance(value, (list, dict)) and key != 'raw_json':
+                        data[key] = json.dumps(value)
+                filtered = {k: v for k, v in data.items() if k in valid_columns}
+                columns = ', '.join(filtered)
+                placeholders = ', '.join('?' for _ in filtered)
+                updates = ', '.join(f'{k} = excluded.{k}' for k in filtered)
+                conn.execute(f"""
+                    INSERT INTO {table} ({columns}) VALUES ({placeholders})
+                    ON CONFLICT({primary_key}) DO UPDATE SET {updates}
+                """, list(filtered.values()))
     
     def get_records(self, table: str, where: Optional[str] = None, 
                    params: Optional[tuple] = None, order_by: Optional[str] = None) -> List[Dict[str, Any]]:

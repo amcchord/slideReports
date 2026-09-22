@@ -288,6 +288,7 @@ class SyncEngine:
         
         table_name, primary_key = table_map[source]
         
+        batch = []
         for i, item in enumerate(items):
             # Store raw JSON for reference
             data = dict(item)
@@ -297,11 +298,12 @@ class SyncEngine:
             if source == 'snapshots':
                 data = self._parse_snapshot_location_data(data)
             
-            self.database.upsert_record(table_name, primary_key, data)
-            
-            # Update progress
-            if progress_callback and (i + 1) % 10 == 0:
-                progress_callback(source, i + 1, len(items), 'storing')
+            batch.append(data)
+            if len(batch) == 500 or i + 1 == len(items):
+                self.database.upsert_records(table_name, primary_key, batch)
+                batch = []
+                if progress_callback:
+                    progress_callback(source, i + 1, len(items), 'storing')
     
     def _parse_snapshot_location_data(self, snapshot_data: Dict) -> Dict:
         """

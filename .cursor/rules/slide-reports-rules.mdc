@@ -12,7 +12,7 @@ alwaysApply: false
 
 ## Testing
 
-- Test API key for development/testing: `tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL`
+- Test API key for development/testing: `YOUR_SLIDE_API_KEY`
 - Use this key when testing API endpoints or authentication features
 
 ## Coding Standards
@@ -31,7 +31,7 @@ alwaysApply: false
 
 ## Testing
 
-- Test API key for development/testing: `tk_4xgc378i7hfe_Ww1yeInkVpxy0Y2JBlClo6IvJjCLpQzL`
+- Test API key for development/testing: `YOUR_SLIDE_API_KEY`
 - Use this key when testing API endpoints or authentication features
 
 ## Coding Standards
