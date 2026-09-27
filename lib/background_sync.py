@@ -154,17 +154,26 @@ class BackgroundSyncManager:
                 progress_callback=progress_callback
             )
             
-            logger.info(f"Sync completed successfully for {api_key_hash[:8]}")
+            if results.get('errors'):
+                logger.warning(
+                    f"Sync finished with {len(results['errors'])} source errors "
+                    f"for {api_key_hash[:8]}"
+                )
+            else:
+                logger.info(f"Sync completed successfully for {api_key_hash[:8]}")
             
-            # The Slide API accepted our key, so any prior "disabled" episode
-            # is over. Clear the disabled flag and the alert-sent marker so a
-            # future disabled episode can alert recipients exactly once again.
-            try:
-                db.set_preference('api_key_status', 'valid')
-                db.delete_preference('api_key_disabled_at')
-                db.delete_preference('api_key_disabled_alert_sent_at')
-            except Exception as e:
-                logger.error(f"Failed to clear disabled markers for {api_key_hash[:8]}: {e}")
+            # sync_all also returns normally when every source failed. In
+            # particular, rate-limited /device checks do not prove that a
+            # revoked key recovered. Only a completed baseline device fetch
+            # can clear the disabled episode and allow a future alert.
+            device_result = results.get('sources', {}).get('devices', {})
+            if device_result.get('status') == 'completed':
+                try:
+                    db.set_preference('api_key_status', 'valid')
+                    db.delete_preference('api_key_disabled_at')
+                    db.delete_preference('api_key_disabled_alert_sent_at')
+                except Exception as e:
+                    logger.error(f"Failed to clear disabled markers for {api_key_hash[:8]}: {e}")
             
             # Prune old snapshot records (older than 90 days)
             pruned_count = 0

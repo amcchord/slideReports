@@ -134,8 +134,9 @@ class EmailScheduler:
         the alert, this is a no-op. This is the once-only guarantee: we will
         never spam recipients, even across racing ticks or process restarts.
         
-        The flag is cleared by background_sync._run_sync on the next
-        successful sync, so a future disabled episode can alert again.
+        The flag is cleared by background_sync._run_sync only after a
+        successful baseline device fetch, so a future disabled episode can
+        alert again. Source errors alone are not evidence of recovery.
         """
         claimed = db.claim_preference_once(
             'api_key_disabled_alert_sent_at',
@@ -269,28 +270,27 @@ class EmailScheduler:
         else:
             logger.warning(f"Failed to start pre-email sync for {api_key_hash[:8]}")
         
-        # If background_sync flagged the API key as disabled during this
-        # sync, surface that to the caller so the schedule run is aborted
-        # cleanly (instead of falling through to send stale data).
-        if db.get_preference('api_key_status', 'valid') == 'disabled':
-            raise InvalidAPIKeyError(
-                401, "Slide API key disabled during pre-email sync"
-            )
-    
     def _execute_schedule(self, api_key_hash: str, schedule: dict, timezone: str):
         """Execute a single email schedule"""
         db_path = get_database_path(api_key_hash)
         db = Database(db_path)
         esm = EmailScheduleManager(db_path)
         
+        key_rejected = False
         try:
             # Sync data before sending scheduled email
             logger.info(f"Syncing data before sending scheduled email for {api_key_hash[:8]}")
             self._sync_before_email(api_key_hash, db)
         except InvalidAPIKeyError:
-            # Pre-sync detected that the Slide API key is disabled. Skip this
-            # send (and any others for this account) instead of mailing stale
-            # data. Trigger the one-time alert if it hasn't already been sent.
+            key_rejected = True
+        except Exception as sync_error:
+            logger.warning(f"Sync failed before sending email for {api_key_hash[:8]}: {sync_error}")
+            # Cached reports remain allowed for transient failures, provided
+            # this key has not already been confirmed disabled.
+
+        # Check on every pre-sync exit, including a missing/decryption-failed
+        # key, a failed sync start, or waiting for another worker's sync.
+        if key_rejected or db.get_preference('api_key_status', 'valid') == 'disabled':
             logger.warning(
                 f"API key disabled for {api_key_hash[:8]}; skipping schedule "
                 f"{schedule['schedule_id']} and any other due schedules"
@@ -298,9 +298,6 @@ class EmailScheduler:
             self._maybe_send_disabled_key_alert(db, esm, api_key_hash)
             self._handle_disabled_key_skip(db, esm, schedule, timezone)
             return
-        except Exception as sync_error:
-            logger.warning(f"Sync failed before sending email for {api_key_hash[:8]}: {sync_error}")
-            # Continue with email even if sync fails - use existing data
         
         try:
             # Calculate date range
