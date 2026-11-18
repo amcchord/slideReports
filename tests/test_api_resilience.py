@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 import requests
 from datetime import datetime, timezone
-from lib.slide_api import SlideAPIClient
+from lib.slide_api import SlideAPIClient, SlideRateLimitError
 
 class ClientTests(unittest.TestCase):
     def client(self):
@@ -14,29 +14,51 @@ class ClientTests(unittest.TestCase):
         r.json.return_value=body or {'data':[]}
         if status>=400:r.raise_for_status.side_effect=requests.HTTPError('failure')
         return r
+    @patch('lib.slide_api.time.time', return_value=1000)
+    @patch.object(SlideAPIClient, '_cooldowns', {})
     @patch('lib.slide_api.time.sleep')
-    def test_bounded_retry_after(self,sleep):
-        c=self.client();c.session.request=Mock(side_effect=[self.response(429,headers={'Retry-After':'2'}),self.response()])
-        c._make_request('GET','device')
-        self.assertEqual(c.session.request.call_count,2)
-        sleep.assert_called_once_with(2.0)
-        self.assertEqual(c.session.request.call_args.kwargs['timeout'],(5,30))
+    def test_429_sets_cooldown_without_retrying(self, sleep, now):
+        client = self.client()
+        client.session.request = Mock(return_value=self.response(429, headers={'Retry-After': '600'}))
+        with self.assertRaises(SlideRateLimitError) as rejected:
+            client._make_request('GET', 'device')
+        self.assertEqual(rejected.exception.retry_at, 1600)
+        client.session.request.assert_called_once()
+        sleep.assert_not_called()
+        self.assertEqual(client.session.request.call_args.kwargs['timeout'], (5, 30))
+
+        second = SlideAPIClient('test-key')
+        second.session.request = Mock()
+        with self.assertRaises(SlideRateLimitError):
+            second._make_request('GET', 'agent')
+        second.session.request.assert_not_called()
+
     @patch('lib.slide_api.time.sleep')
     def test_mutation_not_retried(self,sleep):
         c=self.client();c.session.request=Mock(return_value=self.response(503))
         with self.assertRaises(requests.HTTPError):c._make_request('POST','backup')
         self.assertEqual(c.session.request.call_count,1)
         sleep.assert_not_called()
-    @patch('lib.slide_api.time.sleep')
-    def test_rate_limit_eventually_fails(self,sleep):
-        c=self.client();c.session.request=Mock(return_value=self.response(429))
-        with self.assertRaises(requests.HTTPError):c._make_request('GET','device')
-        self.assertEqual(c.session.request.call_count,3)
-    def test_missing_pagination_and_no_parameter_mutation(self):
-        c=self.client();params={'client_id':'c1'}
-        c._make_request=Mock(side_effect=[{'data':[{'id':i} for i in range(50)],'pagination':{}},{'data':[{'id':50}],'pagination':{}}])
-        self.assertEqual(len(c._paginate_all('agent',params)),51)
-        self.assertEqual(params,{'client_id':'c1'})
+    def test_full_final_page_without_next_offset_does_not_probe(self):
+        client = self.client()
+        params = {'client_id': 'c1'}
+        client._make_request = Mock(return_value={
+            'data': [{'id': i} for i in range(50)],
+            'pagination': {},
+        })
+        self.assertEqual(len(client._paginate_all('agent', params)), 50)
+        client._make_request.assert_called_once()
+        self.assertEqual(params, {'client_id': 'c1'})
+
+    def test_pagination_follows_explicit_next_offset(self):
+        client = self.client()
+        client._make_request = Mock(side_effect=[
+            {'data': [{'id': 1}], 'pagination': {'next_offset': 20}},
+            {'data': [{'id': 2}], 'pagination': {}},
+        ])
+        self.assertEqual(client._paginate_all('agent'), [{'id': 1}, {'id': 2}])
+        self.assertEqual(client._make_request.call_args.kwargs['params']['offset'], 20)
+
     def test_malformed_collection_fails(self):
         c=self.client();c._make_request=Mock(return_value={'message':'missing data'})
         with self.assertRaises(ValueError):c._paginate_all('agent')

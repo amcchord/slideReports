@@ -21,7 +21,7 @@ from lib.email_scheduler import EmailScheduler
 from lib.database import Database, list_account_database_hashes
 from lib.email_schedules import EmailScheduleManager
 from lib.encryption import Encryption
-from lib.slide_api import InvalidAPIKeyError, SlideAPIClient
+from lib.slide_api import InvalidAPIKeyError, SlideAPIClient, SlideRateLimitError
 
 
 def make_response(status_code, url, body=b'{}'):
@@ -36,7 +36,7 @@ def make_response(status_code, url, body=b'{}'):
 class SlideAPIKeyStatusTests(unittest.TestCase):
     def make_client(self, responses):
         client = SlideAPIClient('tk_test')
-        client.RATE_LIMIT_DELAY = 0
+        client._rate_limit = MagicMock()
         client.session = MagicMock()
         client.session.request.side_effect = responses
         return client
@@ -183,7 +183,7 @@ class DisabledKeyAlertRegressionTests(unittest.TestCase):
 
     def run_sync(self, response_for_endpoint, sources=None):
         client = SlideAPIClient('tk_test')
-        client.RATE_LIMIT_DELAY = 0
+        client._rate_limit = MagicMock()
         client.session = MagicMock()
         def respond(method, url, **kwargs):
             status = response_for_endpoint(url.rsplit('/', 1)[-1])
@@ -195,12 +195,19 @@ class DisabledKeyAlertRegressionTests(unittest.TestCase):
             self.manager._run_sync('tk_test', self.key_hash, sources)
 
     def test_rate_limited_sync_does_not_rearm_alert(self):
-        # Reproduce production: /device is rate limited, other sources reject
-        # the key, and their baseline confirmations are also rate limited.
-        self.run_sync(lambda endpoint: 429 if endpoint == 'device' else 401)
+        # The production pattern started with a 429 from /device.
+        attempted = []
+
+        def reject(endpoint):
+            attempted.append(endpoint)
+            return 429 if endpoint == 'device' else 401
+
+        self.run_sync(reject)
         state = self.manager.get_sync_state(self.key_hash)
-        self.assertEqual(len(state['results']['errors']), 13)
-        self.assertEqual(state['results']['total_items'], 0)
+        self.assertEqual(state['status'], 'error')
+        self.assertEqual(attempted, ['device'])
+        with self.assertRaises(SlideRateLimitError):
+            self.manager.start_sync('tk_test', self.key_hash)
         self.assertEqual(self.db.get_preference('api_key_status'), 'disabled')
         self.assertEqual(self.db.get_preference('api_key_disabled_at'), 'original-rejection')
         self.assertEqual(self.db.get_preference('api_key_disabled_alert_sent_at'), 'original-alert')

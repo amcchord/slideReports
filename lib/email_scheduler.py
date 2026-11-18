@@ -3,6 +3,7 @@ Background scheduler for automatic email report sending.
 """
 import os
 import logging
+import time
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -13,7 +14,8 @@ from .report_generator import ReportGenerator
 from .email_service import EmailService
 from .pdf_service import PDFService
 from .email_builder import build_email_attachments, EmailTooLargeError
-from .slide_api import InvalidAPIKeyError
+from .slide_api import InvalidAPIKeyError, SlideRateLimitError
+from .sync import SyncEngine
 import pytz
 from datetime import timedelta
 
@@ -195,81 +197,45 @@ class EmailScheduler:
                 )
     
     def _sync_before_email(self, api_key_hash: str, db: Database):
-        """Sync data with API before sending scheduled email"""
+        """Reuse a recent refresh or wait for a single shared sync."""
         from .background_sync import background_sync
         from .encryption import Encryption
-        
-        # Get the encrypted API key from the database
-        encrypted_api_key = db.get_encrypted_api_key(api_key_hash)
-        
-        if not encrypted_api_key:
-            logger.warning(f"No stored API key for {api_key_hash[:8]}, cannot sync before email")
-            return
-        
-        # Decrypt the API key
-        encryption_key = os.environ.get('ENCRYPTION_KEY')
-        if not encryption_key:
-            logger.error("ENCRYPTION_KEY not set, cannot decrypt API key")
-            return
-        
-        encryption = Encryption(encryption_key)
-        try:
-            api_key = encryption.decrypt(encrypted_api_key)
-        except Exception as e:
-            logger.error(f"Failed to decrypt API key for {api_key_hash[:8]}: {e}")
-            return
-        
-        # Check if sync is already in progress
+
         sync_state = background_sync.get_sync_state(api_key_hash)
+        if sync_state.get('status') != 'syncing':
+            now = datetime.utcnow()
+            key_retry = SyncEngine._parse_utc(db.get_preference('api_key_retry_at'))
+            if key_retry and key_retry > now:
+                return
+            latest = SyncEngine._parse_utc(
+                sync_state.get('last_full_attempt_at') or sync_state.get('last_full_completed_at')
+            )
+            if latest and now - latest < background_sync.EMAIL_SYNC_FRESHNESS:
+                return
+            if sync_state.get('retry_at', 0) > time.time():
+                return
+
+            encrypted_api_key = db.get_encrypted_api_key(api_key_hash)
+            encryption_key = os.environ.get('ENCRYPTION_KEY')
+            if not encrypted_api_key or not encryption_key:
+                logger.warning('Cannot access stored API key for %s', api_key_hash[:8])
+                return
+            api_key = Encryption(encryption_key).decrypt(encrypted_api_key)
+            try:
+                background_sync.start_sync(api_key, api_key_hash, trigger='email')
+            except SlideRateLimitError:
+                return
+            # Read again when another worker won the account lock.
+            sync_state = background_sync.get_sync_state(api_key_hash)
+
+        for _ in range(30):
+            if sync_state.get('status') != 'syncing':
+                return
+            time.sleep(10)
+            sync_state = background_sync.get_sync_state(api_key_hash)
         if sync_state.get('status') == 'syncing':
-            logger.info(f"Sync already in progress for {api_key_hash[:8]}, waiting for completion")
-            # Wait for ongoing sync to complete (with timeout)
-            import time
-            max_wait_seconds = 300  # 5 minutes
-            waited_seconds = 0
-            while sync_state.get('status') == 'syncing' and waited_seconds < max_wait_seconds:
-                time.sleep(10)
-                waited_seconds += 10
-                sync_state = background_sync.get_sync_state(api_key_hash)
-            
-            if sync_state.get('status') == 'syncing':
-                logger.warning(f"Sync still in progress after {max_wait_seconds}s, proceeding with email")
-            return
-        
-        # Trigger the sync and wait for it to complete
-        success = background_sync.start_sync(api_key, api_key_hash)
-        if success:
-            logger.info(f"Pre-email sync started for {api_key_hash[:8]}, waiting for completion")
-            # Wait for sync to complete
-            import time
-            max_wait_seconds = 300  # 5 minutes
-            waited_seconds = 0
-            while waited_seconds < max_wait_seconds:
-                time.sleep(10)
-                waited_seconds += 10
-                sync_state = background_sync.get_sync_state(api_key_hash)
-                status = sync_state.get('status')
-                
-                if status == 'completed':
-                    logger.info(f"Pre-email sync completed successfully for {api_key_hash[:8]}")
-                    break
-                elif status in ('failed', 'error'):
-                    # background_sync sets 'error' on failure; accept both
-                    # so we react promptly instead of waiting out the timeout.
-                    logger.warning(
-                        f"Pre-email sync ended with status={status} for {api_key_hash[:8]}: "
-                        f"{sync_state.get('error')}"
-                    )
-                    break
-                elif status != 'syncing':
-                    # Unknown status, break
-                    break
-            
-            if waited_seconds >= max_wait_seconds:
-                logger.warning(f"Pre-email sync timeout after {max_wait_seconds}s for {api_key_hash[:8]}")
-        else:
-            logger.warning(f"Failed to start pre-email sync for {api_key_hash[:8]}")
-        
+            logger.warning('Pre-email sync still running for %s after five minutes', api_key_hash[:8])
+
     def _execute_schedule(self, api_key_hash: str, schedule: dict, timezone: str):
         """Execute a single email schedule"""
         db_path = get_database_path(api_key_hash)

@@ -4,20 +4,24 @@ Slide Reports System - Main Flask Application
 import os
 import json
 import logging
+import math
+import time
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, make_response, session
 from dotenv import load_dotenv
 
 from lib.encryption import Encryption
 from lib.database import Database, get_database_path
-from lib.slide_api import SlideAPIClient
+from lib.slide_api import SlideAPIClient, SlideRateLimitError
 from lib.recipes_handoff import install_handoff
 from lib.sync import SyncEngine
 from lib.templates import TemplateManager
 from lib.ai_generator import AITemplateGenerator
 from lib.report_generator import ReportGenerator, format_datetime_friendly
 from lib.background_sync import background_sync
-from lib.scheduler import auto_sync_scheduler
+from lib.scheduler import (
+    AUTO_SYNC_FREQUENCIES, auto_sync_frequency, auto_sync_scheduler, next_auto_sync_at,
+)
 from lib.email_schedules import EmailScheduleManager
 from lib.email_service import EmailService
 from lib.email_scheduler import EmailScheduler
@@ -155,6 +159,7 @@ def connected_key_response(api_key, response):
     db.set_preference('api_key_status', 'valid')
     db.delete_preference('api_key_disabled_at')
     db.delete_preference('api_key_disabled_alert_sent_at')
+    db.delete_preference('api_key_retry_at')
     response.set_cookie('slide_api_key', encrypted_key, max_age=30*24*60*60,
                         httponly=True, secure=request.is_secure, samesite='Lax')
     return response
@@ -200,34 +205,7 @@ def setup():
                 try:
                     client = SlideAPIClient(api_key_param)
                     if client.test_connection():
-                        # Encrypt and set cookie
-                        encrypted_key = encryption.encrypt(api_key_param)
-                        api_key_hash = Encryption.hash_api_key(api_key_param)
-                        
-                        # Store in database
-                        db = Database(get_database_path(api_key_hash))
-                        db.store_encrypted_api_key(api_key_hash, encrypted_key)
-                        
-                        # Belt-and-suspenders: clear any prior "disabled"
-                        # markers so emails resume immediately. The primary
-                        # recovery path is background_sync clearing these on
-                        # its next successful run, but if the user lands here
-                        # with a working key we should not make them wait.
-                        db.set_preference('api_key_status', 'valid')
-                        db.delete_preference('api_key_disabled_at')
-                        db.delete_preference('api_key_disabled_alert_sent_at')
-                        
-                        # Set cookie and redirect
-                        response = redirect(url_for('dashboard'))
-                        response.set_cookie(
-                            'slide_api_key',
-                            encrypted_key,
-                            max_age=30*24*60*60,
-                            httponly=True,
-                            secure=request.is_secure,
-                            samesite='Lax'
-                        )
-                        return response
+                        return connected_key_response(api_key_param, redirect(url_for('dashboard')))
                     else:
                         logger.warning(f"Auto-login failed: API key validation failed")
                 except Exception as e:
@@ -254,6 +232,8 @@ def api_setup():
         client = SlideAPIClient(api_key)
         if not client.test_connection():
             return jsonify({'error': 'API key is invalid or unauthorized'}), 401
+    except SlideRateLimitError as error:
+        return slide_rate_limit_response(error)
     except Exception as e:
         logger.error(f"API test failed: {e}")
         return jsonify({'error': 'Failed to validate API key'}), 500
@@ -326,13 +306,26 @@ def api_sync(api_key, api_key_hash):
     data = request.get_json() or {}
     data_sources = data.get('data_sources', None)
     
-    # Start background sync
-    started = background_sync.start_sync(api_key, api_key_hash, data_sources)
-    
+    if data_sources is not None and (
+        not isinstance(data_sources, list)
+        or any(not isinstance(source, str) or source not in SyncEngine.DATA_SOURCES
+               for source in data_sources)
+    ):
+        return jsonify({'error': 'Invalid sync data sources'}), 400
+
+    try:
+        started = background_sync.start_sync(api_key, api_key_hash, data_sources)
+    except SlideRateLimitError as error:
+        return slide_rate_limit_response(error)
     if not started:
-        return jsonify({'error': 'Sync already in progress'}), 409
-    
+        return jsonify({'error': 'A sync is running or started in the last minute'}), 409
+
     return jsonify({'status': 'started', 'message': 'Sync started in background'}), 202
+
+
+def slide_rate_limit_response(error):
+    seconds = max(1, math.ceil(error.retry_at - time.time()))
+    return jsonify({'error': str(error)}), 429, {'Retry-After': str(seconds)}
 
 
 @app.route('/api/data/clear', methods=['POST'])
@@ -340,13 +333,9 @@ def api_sync(api_key, api_key_hash):
 def api_data_clear(api_key, api_key_hash):
     """Clear all synced data while preserving preferences and schedules"""
     try:
-        db_path = get_database_path(api_key_hash)
-        db = Database(db_path)
-        db.clear_sync_data()
-        
-        # Also clear the background sync state to ensure it doesn't think a sync is in progress
-        background_sync.clear_sync_state(api_key_hash)
-        
+        if not background_sync.clear_synced_data(api_key_hash):
+            return jsonify({'error': 'Wait for the current sync to finish before clearing data'}), 409
+
         logger.info(f"Cleared sync data for {api_key_hash[:8]}")
         return jsonify({'success': True, 'message': 'All synced data cleared successfully'}), 200
     except Exception as e:
@@ -2139,7 +2128,11 @@ def api_set_auto_sync(api_key, api_key_hash):
     data = request.get_json()
     enabled = data.get('enabled')
     frequency_hours = data.get('frequency_hours')
-    
+    if frequency_hours is not None and (
+        type(frequency_hours) is not int or frequency_hours not in AUTO_SYNC_FREQUENCIES
+    ):
+        return jsonify({'error': 'Invalid automatic sync frequency'}), 400
+
     db = Database(get_database_path(api_key_hash))
     
     if enabled is not None:
@@ -2151,7 +2144,7 @@ def api_set_auto_sync(api_key, api_key_hash):
     return jsonify({
         'success': True,
         'enabled': enabled if enabled is not None else db.get_preference('auto_sync_enabled', 'false').lower() == 'true',
-        'frequency_hours': frequency_hours if frequency_hours is not None else int(db.get_preference('auto_sync_frequency_hours', '1'))
+        'frequency_hours': frequency_hours if frequency_hours is not None else auto_sync_frequency(db.get_preference('auto_sync_frequency_hours'))
     })
 
 
@@ -2160,22 +2153,16 @@ def api_set_auto_sync(api_key, api_key_hash):
 def api_sync_next(api_key, api_key_hash):
     """Get next scheduled sync time"""
     db = Database(get_database_path(api_key_hash))
-    auto_sync_enabled = db.get_preference('auto_sync_enabled', 'false').lower() == 'true'
-    frequency_hours = int(db.get_preference('auto_sync_frequency_hours', '1'))
-    
-    # Get last sync time
+    preferences = db.get_auto_sync_preferences()
+    auto_sync_enabled = preferences.get('auto_sync_enabled', 'false').lower() == 'true'
+    frequency_hours = auto_sync_frequency(preferences.get('auto_sync_frequency_hours'))
     bg_state = background_sync.get_sync_state(api_key_hash)
     last_sync = bg_state.get('completed_at')
-    
     next_sync = None
-    if auto_sync_enabled and last_sync:
-        from datetime import datetime, timedelta
-        # Parse timestamp with UTC indicator (Z suffix)
-        last_sync_dt = datetime.fromisoformat(last_sync.replace('Z', '+00:00'))
-        next_sync_dt = last_sync_dt + timedelta(hours=frequency_hours)
-        # Return with Z suffix to ensure JavaScript treats it as UTC
-        next_sync = next_sync_dt.isoformat().replace('+00:00', 'Z')
-    
+    if auto_sync_enabled:
+        due_at = next_auto_sync_at(bg_state, frequency_hours, preferences)
+        next_sync = max(due_at, datetime.utcnow()).isoformat() + 'Z'
+
     return jsonify({
         'auto_sync_enabled': auto_sync_enabled,
         'frequency_hours': frequency_hours,

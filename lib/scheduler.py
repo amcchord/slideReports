@@ -1,145 +1,118 @@
-"""
-Background scheduler for automatic data synchronization.
-"""
-import os
+"""Schedule a bounded number of automatic syncs as accounts become due."""
 import logging
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+
 from .background_sync import background_sync
 from .database import Database, get_database_path, list_account_database_hashes
 from .encryption import Encryption
+from .slide_api import SlideRateLimitError
+from .sync import SyncEngine
 
 logger = logging.getLogger(__name__)
 
+AUTO_SYNC_FREQUENCIES = (1, 2, 4, 6, 12, 24)
+
+
+def auto_sync_frequency(value):
+    try:
+        hours = int(value)
+    except (ValueError, TypeError):
+        return 1
+    return hours if hours in AUTO_SYNC_FREQUENCIES else 1
+
+
+def next_auto_sync_at(state, frequency_hours, preferences):
+    last_attempt = SyncEngine._parse_utc(
+        state.get('last_full_attempt_at') or state.get('completed_at')
+        or state.get('error_at') or state.get('started_at')
+    )
+    due_at = (last_attempt + timedelta(hours=frequency_hours)
+              if last_attempt else datetime.min)
+    if preferences.get('api_key_status') == 'disabled':
+        retry = SyncEngine._parse_utc(preferences.get('api_key_retry_at'))
+        if not retry and last_attempt:
+            retry = last_attempt + background_sync.DISABLED_KEY_RECHECK
+        if retry:
+            due_at = max(due_at, retry)
+    if state.get('retry_at'):
+        due_at = max(due_at, datetime.utcfromtimestamp(state['retry_at']))
+    return due_at
+
 
 class AutoSyncScheduler:
-    """Manages automatic syncing for all API keys"""
-    
     def __init__(self):
         self.scheduler = BackgroundScheduler()
         self.data_dir = os.environ.get('DATA_DIR', '/var/www/reports.slide.recipes/data')
         self.started = False
-    
+
     def start(self):
-        """Start the scheduler"""
         if self.started:
             return
-        
-        # Schedule hourly sync check
         self.scheduler.add_job(
-            func=self._check_and_sync_all,
-            trigger=IntervalTrigger(hours=1),
+            self._check_and_sync_all,
+            trigger=IntervalTrigger(minutes=1),
             id='auto_sync_check',
-            name='Check and sync all API keys',
-            replace_existing=True
+            name='Start due account syncs',
+            replace_existing=True,
         )
-        
         self.scheduler.start()
         self.started = True
-        logger.info("Auto-sync scheduler started")
-    
+        logger.info('Auto-sync scheduler started')
+
     def stop(self):
-        """Stop the scheduler"""
         if self.scheduler.running:
             self.scheduler.shutdown()
             self.started = False
-            logger.info("Auto-sync scheduler stopped")
-    
+            logger.info('Auto-sync scheduler stopped')
+
     def _check_and_sync_all(self):
-        """Check all API keys and sync those with auto-sync enabled"""
-        try:
-            # Get all database files
-            if not os.path.exists(self.data_dir):
-                return
-            
-            for api_key_hash in list_account_database_hashes(self.data_dir):
-                self._check_and_sync_key(api_key_hash)
-        
-        except Exception as e:
-            logger.error(f"Error in auto-sync check: {e}")
-    
-    def _check_and_sync_key(self, api_key_hash: str):
-        """Check if a specific API key should be synced"""
-        try:
-            db_path = get_database_path(api_key_hash)
-            if not os.path.exists(db_path):
-                return
-            
-            db = Database(db_path)
-            
-            # Check if auto-sync is enabled (default: false - only sync on manual trigger or before scheduled emails)
-            auto_sync_enabled = db.get_preference('auto_sync_enabled', 'false').lower() == 'true'
-            
-            if not auto_sync_enabled:
-                logger.debug(f"Auto-sync disabled for {api_key_hash[:8]}")
-                return
-            
-            # Check if sync is already in progress
-            sync_state = background_sync.get_sync_state(api_key_hash)
-            if sync_state.get('status') == 'syncing':
-                logger.debug(f"Sync already in progress for {api_key_hash[:8]}")
-                return
-            
-            # Check last sync time
-            frequency_hours = int(db.get_preference('auto_sync_frequency_hours', '1'))
-            last_sync = sync_state.get('completed_at')
-            
-            if last_sync:
-                # Parse timestamp with UTC indicator (Z suffix)
-                last_sync_dt = datetime.fromisoformat(last_sync.replace('Z', '+00:00'))
-                # Convert to naive datetime for comparison with utcnow()
-                last_sync_dt = last_sync_dt.replace(tzinfo=None)
-                hours_since_sync = (datetime.utcnow() - last_sync_dt).total_seconds() / 3600
-                
-                if hours_since_sync < frequency_hours:
-                    logger.debug(f"Sync not needed yet for {api_key_hash[:8]}")
-                    return
-            
-            # Get the encrypted API key from the database
-            encrypted_api_key = db.get_encrypted_api_key(api_key_hash)
-            
-            if not encrypted_api_key:
-                logger.warning(f"No stored API key for {api_key_hash[:8]}, cannot auto-sync")
-                return
-            
-            # Decrypt the API key
-            from .encryption import Encryption
-            encryption_key = os.environ.get('ENCRYPTION_KEY')
-            if not encryption_key:
-                logger.error("ENCRYPTION_KEY not set, cannot decrypt API key")
-                return
-            
-            encryption = Encryption(encryption_key)
+        now = datetime.utcnow()
+        due = []
+        for api_key_hash in list_account_database_hashes(self.data_dir):
             try:
-                api_key = encryption.decrypt(encrypted_api_key)
-            except Exception as e:
-                logger.error(f"Failed to decrypt API key for {api_key_hash[:8]}: {e}")
-                return
-            
-            # Trigger the sync
-            success = background_sync.start_sync(api_key, api_key_hash)
-            if success:
-                logger.info(f"Auto-sync triggered for {api_key_hash[:8]}")
-            else:
-                logger.warning(f"Auto-sync failed to start for {api_key_hash[:8]} (already in progress)")
-            
-        except Exception as e:
-            logger.error(f"Error checking sync for {api_key_hash[:8]}: {e}")
-    
-    def trigger_sync_for_key(self, api_key: str, api_key_hash: str):
-        """Manually trigger sync for a specific API key"""
-        try:
-            # Start sync in background
-            success = background_sync.start_sync(api_key, api_key_hash)
-            if success:
-                logger.info(f"Manual sync triggered for {api_key_hash[:8]}")
-            return success
-        except Exception as e:
-            logger.error(f"Error triggering sync: {e}")
-            return False
+                path = get_database_path(api_key_hash)
+                db = Database(path, initialize=False)
+                preferences = db.get_auto_sync_preferences()
+                if preferences.get('auto_sync_enabled', 'false').lower() != 'true':
+                    continue
+                state = background_sync.get_sync_state(api_key_hash)
+                if state['status'] == 'syncing':
+                    continue
+                hours = auto_sync_frequency(preferences.get('auto_sync_frequency_hours'))
+                due_at = next_auto_sync_at(state, hours, preferences)
+                if due_at <= now:
+                    due.append((due_at, api_key_hash, db))
+            except Exception:
+                logger.exception('Unable to check auto-sync for %s', api_key_hash[:8])
+
+        # Start older work first. Small batches avoid an hourly wave of
+        # credential checks, even if many accounts become due together.
+        encryption_key = os.environ.get('ENCRYPTION_KEY')
+        if not due or not encryption_key:
+            return
+        encryption = Encryption(encryption_key)
+        started = 0
+        for _, api_key_hash, db in sorted(due):
+            try:
+                encrypted = db.get_encrypted_api_key(api_key_hash)
+                if not encrypted:
+                    continue
+                if background_sync.start_sync(encryption.decrypt(encrypted), api_key_hash, trigger='auto'):
+                    started += 1
+                    if started >= background_sync.AUTO_SYNC_SLOTS:
+                        break
+                else:
+                    # The global slots are busy, or an account started
+                    # between the scheduler scan and the lock attempt.
+                    break
+            except SlideRateLimitError:
+                continue
+            except Exception:
+                logger.exception('Unable to start auto-sync for %s', api_key_hash[:8])
 
 
-# Global scheduler instance
 auto_sync_scheduler = AutoSyncScheduler()
-

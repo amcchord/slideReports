@@ -2,10 +2,11 @@
 Data synchronization engine for fetching data from Slide API and storing in SQLite.
 Provides progress tracking for UI feedback.
 """
+import json
 import logging
 from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime, timedelta
-from .slide_api import SlideAPIClient, InvalidAPIKeyError
+from datetime import datetime, timedelta, timezone
+from .slide_api import SlideAPIClient, InvalidAPIKeyError, SlideRateLimitError
 from .database import Database
 
 logger = logging.getLogger(__name__)
@@ -21,18 +22,22 @@ class SyncEngine:
         'backups': 'Backups',
         'snapshots': 'Snapshots',
         'alerts': 'Alerts',
-        'audits': 'Audit Logs',
         'clients': 'Clients',
         'users': 'Users',
         'networks': 'Networks',
         'virtual_machines': 'Virtual Machines',
         'file_restores': 'File Restores',
         'image_exports': 'Image Exports',
-        'accounts': 'Accounts'
+        'accounts': 'Accounts',
+        'audits': 'Audit Logs'
     }
     
     # How long before a "syncing" status is considered stale (in minutes)
     STALE_SYNC_THRESHOLD_MINUTES = 10
+    HISTORY_OVERLAP = timedelta(days=1)
+    HISTORY_RECONCILE_INTERVAL = timedelta(days=1)
+    AUDIT_OVERLAP = timedelta(minutes=5)
+    BACKGROUND_AUDIT_PAGES = 20
     
     def __init__(self, api_client: SlideAPIClient, database: Database):
         """
@@ -121,7 +126,8 @@ class SyncEngine:
     
     def sync_all(self, data_sources: Optional[List[str]] = None,
                 start_date: Optional[datetime] = None,
-                progress_callback: Optional[Callable[[str, int, int, str], None]] = None) -> Dict[str, Any]:
+                progress_callback: Optional[Callable[[str, int, int, str], None]] = None,
+                incremental: bool = False) -> Dict[str, Any]:
         """
         Sync all or selected data sources.
         
@@ -137,7 +143,9 @@ class SyncEngine:
         recovered = self.recover_stale_syncs()
         
         if data_sources is None:
-            data_sources = list(self.DATA_SOURCES.keys())
+            data_sources = list(self.DATA_SOURCES)
+        else:
+            data_sources = list(dict.fromkeys(data_sources))
         
         results = {
             'started_at': datetime.utcnow().isoformat(),
@@ -153,13 +161,11 @@ class SyncEngine:
                 continue
             
             try:
-                result = self._sync_source(source, start_date, progress_callback)
+                result = self._sync_source(source, start_date, progress_callback, incremental)
                 results['sources'][source] = result
                 results['total_items'] += result['items_synced']
-            except InvalidAPIKeyError:
-                # API key is disabled/revoked. No point continuing to hit
-                # other endpoints that will all 401 -- bubble up so the
-                # caller can mark the key disabled and abort.
+            except (InvalidAPIKeyError, SlideRateLimitError):
+                # Authentication rejection and throttling both end this run.
                 raise
             except Exception as e:
                 error_msg = f"Error syncing {source}: {str(e)}"
@@ -175,7 +181,7 @@ class SyncEngine:
         return results
     
     def _sync_source(self, source: str, start_date: Optional[datetime],
-                    progress_callback: Optional[Callable]) -> Dict[str, Any]:
+                    progress_callback: Optional[Callable], incremental: bool) -> Dict[str, Any]:
         """Sync a single data source"""
         self.current_operation = source
         
@@ -183,63 +189,133 @@ class SyncEngine:
             if progress_callback:
                 progress_callback(source, current, total, 'syncing')
         
-        # Update sync status to in-progress
+        history = None
+        if source in ('backups', 'snapshots'):
+            history = self._history_state(source, incremental, start_date)
         self.database.update_sync_status(source, 'syncing', 0)
         
         try:
-            # Fetch data from API
-            items = self._fetch_source_data(source, start_date, progress_wrapper)
-            
-            # Store in database
-            self._store_source_data(source, items, progress_callback)
-            
-            # Update sync status to completed
-            self.database.update_sync_status(source, 'completed', len(items))
-            
+            status = 'completed'
+            if source == 'audits':
+                count, more = self._sync_audits(start_date, progress_callback, incremental)
+                if more:
+                    status = 'partial'
+            elif source in ('backups', 'snapshots'):
+                count = self._sync_history(source, start_date, progress_wrapper,
+                                           progress_callback, incremental, history)
+            else:
+                items = self._fetch_source_data(source, progress_wrapper)
+                self._store_source_data(source, items, progress_callback)
+                count = len(items)
+
+            self.database.update_sync_status(source, status, count)
             return {
-                'status': 'completed',
-                'items_synced': len(items),
+                'status': status,
+                'items_synced': count,
                 'synced_at': datetime.utcnow().isoformat()
             }
         except Exception as e:
             self.database.update_sync_status(source, 'error', 0, str(e))
             raise
     
-    def _fetch_source_data(self, source: str, start_date: Optional[datetime],
-                          progress_callback: Optional[Callable]) -> List[Dict]:
+    def _history_state(self, source, incremental, retention_start):
+        stored = self.database.get_preference(f'sync_history:{source}')
+        if stored:
+            state = json.loads(stored)
+            return self._parse_utc(state['last_success']), self._parse_utc(state['last_full'])
+        if incremental:
+            # Before checkpoints were added, a completed background refresh
+            # always read the full reporting window. Reuse that work on upgrade.
+            previous = next(iter(self.database.get_sync_status(source)), {})
+            if previous.get('status') == 'completed':
+                stamp = self._parse_utc(previous.get('last_sync_at'))
+                if stamp and retention_start and stamp >= retention_start:
+                    # Persist the migration before recording an in-progress
+                    # status, so an interruption cannot erase this baseline.
+                    self.database.set_preference(f'sync_history:{source}', json.dumps({
+                        'last_success': stamp.isoformat(), 'last_full': stamp.isoformat(),
+                    }))
+                    return stamp, stamp
+        return None, None
+
+    def _sync_history(self, source, retention_start, progress_wrapper, progress_callback,
+                      incremental, history):
+        # Backups and snapshots can change after creation. Re-read a recent overlap
+        # every time and reconcile the entire retained window periodically.
+        now = datetime.utcnow()
+        last_success, last_full = history
+        reconcile = (
+            not incremental or not last_success or not last_full
+            or now - last_full >= self.HISTORY_RECONCILE_INTERVAL
+        )
+        start = retention_start
+        if not reconcile:
+            recent = last_success - self.HISTORY_OVERLAP
+            start = max(start, recent) if start else recent
+
+        fetch = self.api_client.get_backups if source == 'backups' else self.api_client.get_snapshots
+        items = fetch(start_date=start, end_date=now, progress_callback=progress_wrapper)
+        self._store_source_data(source, items, progress_callback)
+        self.database.set_preference(f'sync_history:{source}', json.dumps({
+            'last_success': now.isoformat(),
+            'last_full': (now if reconcile else last_full).isoformat(),
+        }))
+        return len(items)
+
+    def _sync_audits(self, retention_start, progress_callback, incremental):
+        # Keep the query bounds fixed until its last page. Save each cursor
+        # after its rows are committed so a retry can replay safely.
+        preference = 'sync_audit_cursor'
+        cursor = json.loads(self.database.get_preference(preference, '{}'))
+        offset = cursor.get('next_offset')
+        high = self._parse_utc(cursor.get('upper'))
+        if offset is None:
+            last = high or self._get_latest_audit_time()
+            lower = last - self.AUDIT_OVERLAP if last else None
+            if retention_start:
+                lower = max(retention_start, lower) if lower else retention_start
+            high = datetime.utcnow()
+            offset = 0
+        else:
+            lower = self._parse_utc(cursor.get('lower'))
+
+        count = 0
+        pages = self.api_client.get_audit_pages(lower, high, offset)
+        for page, (items, next_offset, total) in enumerate(pages, start=1):
+            self._store_source_data('audits', items, None)
+            count += len(items)
+            self.database.set_preference(preference, json.dumps({
+                'lower': lower.isoformat() if lower else None,
+                'upper': high.isoformat(),
+                'next_offset': next_offset,
+            }))
+            if progress_callback:
+                progress_callback('audits', count, total or count, 'storing')
+            if incremental and page >= self.BACKGROUND_AUDIT_PAGES and next_offset is not None:
+                return count, True
+
+        return count, False
+
+    @staticmethod
+    def _parse_utc(value):
+        if value is None:
+            return None
+        stamp = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        if stamp.tzinfo is not None:
+            stamp = stamp.astimezone(timezone.utc).replace(tzinfo=None)
+        return stamp
+
+    def _fetch_source_data(self, source: str, progress_callback: Optional[Callable]) -> List[Dict]:
         """Fetch data from API for a specific source"""
         if source == 'devices':
             return self.api_client.get_devices(progress_callback=progress_callback)
-        
+
         if source == 'agents':
             return self.api_client.get_agents(progress_callback=progress_callback)
-        
-        if source == 'backups':
-            return self.api_client.get_backups(start_date=start_date, 
-                                              progress_callback=progress_callback)
-        
-        if source == 'snapshots':
-            return self.api_client.get_snapshots(include_deleted=True, 
-                                                start_date=start_date,
-                                                progress_callback=progress_callback)
-        
+
         if source == 'alerts':
             return self.api_client.get_alerts(progress_callback=progress_callback)
-        
-        if source == 'audits':
-            # Audit logs are immutable, so only fetch new ones after the latest we have
-            latest_audit_time = self._get_latest_audit_time()
-            if latest_audit_time:
-                # Use the latest audit time we have, adding 1 second to avoid re-fetching the same record
-                audit_start_date = latest_audit_time + timedelta(seconds=1)
-                logger.info(f"Skipping existing audit logs, fetching only after {audit_start_date.isoformat()}")
-            else:
-                # No existing audits, use the provided start_date
-                audit_start_date = start_date
-                
-            return self.api_client.get_audits(start_date=audit_start_date,
-                                             progress_callback=progress_callback)
-        
+
         if source == 'clients':
             return self.api_client.get_clients(progress_callback=progress_callback)
         
@@ -361,10 +437,7 @@ class SyncEngine:
             """)
             
             if result and result[0].get('latest_time'):
-                time_str = result[0]['latest_time']
-                # Parse the ISO format timestamp
-                time_str = time_str.replace('Z', '+00:00')
-                return datetime.fromisoformat(time_str)
+                return self._parse_utc(result[0]['latest_time'])
             
             return None
         except Exception as e:

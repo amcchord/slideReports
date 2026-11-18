@@ -17,7 +17,7 @@ ACCOUNT_DATABASE_FILENAME = re.compile(r'^(?P<api_key_hash>[0-9a-f]{16})\.db$')
 class Database:
     """Manage SQLite database for a specific user"""
     
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, *, initialize: bool = True):
         """
         Initialize database connection.
         
@@ -26,8 +26,9 @@ class Database:
         """
         self.db_path = db_path
         self._table_columns_cache = {}  # Cache for table column names
-        self._ensure_directory()
-        self._initialize_schema()
+        if initialize:
+            self._ensure_directory()
+            self._initialize_schema()
     
     def _ensure_directory(self):
         """Ensure the data directory exists"""
@@ -601,6 +602,15 @@ Report generated at {{ generated_at }} ({{ timezone }})"""
             row = cursor.fetchone()
             return row['value'] if row else default
     
+    def get_auto_sync_preferences(self) -> Dict[str, str]:
+        """Read scheduler settings in one query without initializing the database."""
+        with self.get_connection() as conn:
+            return dict(conn.execute("""
+                SELECT key, value FROM user_preferences
+                WHERE key IN ('auto_sync_enabled', 'auto_sync_frequency_hours',
+                              'api_key_status', 'api_key_retry_at')
+            """).fetchall())
+
     def set_preference(self, key: str, value: str):
         """Set a user preference value"""
         with self.get_connection() as conn:
@@ -762,6 +772,10 @@ Report generated at {{ generated_at }} ({{ timezone }})"""
                     status = NULL, 
                     error_message = NULL, 
                     items_synced = 0
+            """)
+            cursor.execute("""
+                DELETE FROM user_preferences
+                WHERE key GLOB 'sync_history:*' OR key = 'sync_audit_cursor'
             """)
     
     def prune_old_snapshots(self, days: int = 90) -> int:

@@ -2,12 +2,30 @@
 Slide API client for fetching data from the Slide API.
 Handles pagination, rate limiting, and all endpoint operations.
 """
-import requests
+import fcntl
+import hashlib
+import logging
+import math
+import os
+import threading
 import time
+from collections import Counter
+
+import requests
 from email.utils import parsedate_to_datetime
-from datetime import timezone
 from typing import List, Dict, Any, Optional, Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
+
+
+logger = logging.getLogger(__name__)
+
+
+class SlideRateLimitError(requests.HTTPError):
+    """Pause the account when Slide returns 429."""
+
+    def __init__(self, retry_at: float):
+        self.retry_at = retry_at
+        super().__init__('Slide API rate limited this account; sync deferred')
 
 
 class InvalidAPIKeyError(Exception):
@@ -28,7 +46,11 @@ class SlideAPIClient:
     
     BASE_URL = "https://api.slide.tech/v1"
     ITEMS_PER_PAGE = 50
-    RATE_LIMIT_DELAY = 0.1  # 100ms between requests to stay under 10/sec
+    RATE_LIMIT_DELAY = 0.2  # Five requests/sec across Reports workers.
+    UNVERIFIED_DELAY = 1.1  # Protect Slide's shared failed-auth budget.
+    MIN_COOLDOWN = 300
+    _cooldowns = {}
+    _cooldown_lock = threading.Lock()
     
     def __init__(self, api_key: str):
         """
@@ -37,48 +59,108 @@ class SlideAPIClient:
         Args:
             api_key: Slide API token (starts with tk_)
         """
-        self.api_key = api_key
+        self._key_hash = hashlib.sha256(api_key.encode()).digest()
         self.session = requests.Session()
         self.session.headers.update({
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
         })
-        self.last_request_time = 0
+        self._authorized = False
+        self.device_verified = False
+        self._checked_device = False
+        self.request_counts = Counter()
     
     def _rate_limit(self):
-        """Enforce rate limiting between requests"""
-        elapsed = time.time() - self.last_request_time
-        if elapsed < self.RATE_LIMIT_DELAY:
-            time.sleep(self.RATE_LIMIT_DELAY - elapsed)
-        self.last_request_time = time.time()
+        """Share a request budget across threads and WSGI worker generations."""
+        data_dir = os.environ.get('DATA_DIR', '/var/www/reports.slide.recipes/data')
+        with open(os.path.join(data_dir, '.slide-request-pace'), 'a+') as pace:
+            while True:
+                with self._cooldown_lock:
+                    retry_at = self._cooldowns.get(self._key_hash, 0)
+                    if retry_at > time.time():
+                        raise SlideRateLimitError(retry_at)
+                fcntl.flock(pace, fcntl.LOCK_EX)
+                pace.seek(0)
+                try:
+                    last, last_unverified = map(float, pace.read().split())
+                except ValueError:
+                    last = last_unverified = 0
+                now = time.monotonic()
+                # A machine reboot can reset the monotonic clock.
+                last = last if last <= now else 0
+                last_unverified = last_unverified if last_unverified <= now else 0
+                delay = last + self.RATE_LIMIT_DELAY - now
+                if not self._authorized:
+                    delay = max(delay, last_unverified + self.UNVERIFIED_DELAY - now)
+                if delay <= 0:
+                    pace.seek(0)
+                    pace.truncate()
+                    pace.write(f'{now} {last_unverified if self._authorized else now}')
+                    pace.flush()
+                    return
+                fcntl.flock(pace, fcntl.LOCK_UN)
+                time.sleep(delay)
+
+    def _send(self, method, endpoint, **kwargs):
+        self._rate_limit()
+        self.request_counts['requests'] += 1
+        self.request_counts[endpoint] += 1
+        url = f"{self.BASE_URL}/{endpoint}"
+        try:
+            response = self.session.request(
+                method, url, timeout=(5, 30), allow_redirects=False, **kwargs
+            )
+        except requests.RequestException:
+            self.request_counts['transport_errors'] += 1
+            raise
+
+        status = response.status_code
+        if status == 429:
+            self.request_counts['http_429'] += 1
+            now = time.time()
+            retry_at = now + self._retry_delay(response, self.MIN_COOLDOWN)
+            with self._cooldown_lock:
+                expired = [key for key, until in self._cooldowns.items() if until <= now]
+                for key in expired:
+                    del self._cooldowns[key]
+                retry_at = max(retry_at, self._cooldowns.get(self._key_hash, 0))
+                self._cooldowns[self._key_hash] = retry_at
+            raise SlideRateLimitError(retry_at)
+        if status in (401, 403):
+            self.request_counts[f'http_{status}'] += 1
+        if 200 <= status < 300:
+            self._authorized = True
+            if endpoint == 'device':
+                self.device_verified = True
+        return response
+
+    @staticmethod
+    def _retry_delay(response, minimum):
+        value = response.headers.get('Retry-After')
+        if not value:
+            return minimum
+        try:
+            delay = float(value)
+        except ValueError:
+            try:
+                delay = (parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds()
+            except (ValueError, TypeError, OverflowError):
+                return minimum
+        return max(minimum, delay) if math.isfinite(delay) else minimum
 
     def _key_is_rejected(self) -> Optional[bool]:
-        """Confirm whether Slide rejects the key on a baseline endpoint.
-
-        Slide can return 401/403 for an individual endpoint that the key is
-        not permitted to use.  GET /device is also the endpoint used by
-        test_connection(), so use it to distinguish an invalid key from an
-        endpoint-specific authorization failure.
-
-        Returns True when the baseline endpoint rejects the key, False when
-        it accepts the key, and None when the result is inconclusive.
-        """
-        self._rate_limit()
-        url = f"{self.BASE_URL}/device"
-
+        """At most one extra device probe for endpoint-specific denials per run."""
+        if self.device_verified or self._checked_device:
+            return None
+        self._checked_device = True
         try:
-            response = self.session.request('GET', url, params={'limit': 1}, timeout=(5, 30), allow_redirects=False)
+            response = self._send('GET', 'device', params={'limit': 1})
+        except SlideRateLimitError:
+            raise
         except requests.RequestException:
             return None
+        return response.status_code in (401, 403)
 
-        if response.status_code in (401, 403):
-            return True
-
-        if 200 <= response.status_code < 300:
-            return False
-
-        return None
-    
     def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None,
                      json_data: Optional[Dict] = None) -> Dict[str, Any]:
         """
@@ -97,39 +179,28 @@ class SlideAPIClient:
             requests.HTTPError: If request fails
             InvalidAPIKeyError: If the baseline endpoint rejects the API key
         """
-        url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
+        endpoint = endpoint.lstrip('/')
         # Retry only reads. Retrying a timed-out mutation could duplicate an operation.
         attempts = 3 if method.upper() == 'GET' else 1
         for attempt in range(attempts):
-            self._rate_limit()
             try:
-                response = self.session.request(method, url, params=params, json=json_data,
-                                                timeout=(5, 30), allow_redirects=False)
+                response = self._send(method, endpoint, params=params, json=json_data)
             except (requests.Timeout, requests.ConnectionError):
                 if attempt + 1 == attempts:
                     raise
                 time.sleep(0.25 * 2 ** attempt)
                 continue
-            if response.status_code not in (429, 502, 503, 504) or attempt + 1 == attempts:
+            if response.status_code not in (502, 503, 504) or attempt + 1 == attempts:
                 break
-            retry_after = response.headers.get('Retry-After')
-            delay = 0.25 * 2 ** attempt
-            if retry_after:
-                try:
-                    delay = float(retry_after)
-                except ValueError:
-                    try:
-                        delay = (parsedate_to_datetime(retry_after) - datetime.now(timezone.utc)).total_seconds()
-                    except (ValueError, TypeError):
-                        pass
+            delay = self._retry_delay(response, 0.25 * 2 ** attempt)
             if delay > 10:
                 response.raise_for_status()
-            time.sleep(max(0.1, delay))
+            time.sleep(delay)
         if 300 <= response.status_code < 400:
             raise requests.HTTPError('Unexpected redirect from Slide API', response=response)
         
         if response.status_code in (401, 403):
-            endpoint_path = endpoint.lstrip('/').split('?', 1)[0]
+            endpoint_path = endpoint.split('?', 1)[0]
 
             # A rejection from the baseline endpoint is direct evidence that
             # the key itself is invalid. For every other endpoint, confirm
@@ -161,7 +232,8 @@ class SlideAPIClient:
                      date_field: str = 'created_at') -> List[Dict[str, Any]]:
         """
         Fetch all items from a paginated endpoint.
-        Walks backward through pages until start_date is reached (if provided).
+        The server applies the requested date range. Check item dates as well
+        when a cutoff was supplied.
         
         Args:
             endpoint: API endpoint path
@@ -173,82 +245,45 @@ class SlideAPIClient:
         Returns:
             List of all items
         """
-        params = dict(params or {})
-        params['limit'] = self.ITEMS_PER_PAGE
-        params['offset'] = 0
-        
         all_items = []
-        
+        if start_date and start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=timezone.utc)
+        for items, _, total in self._collection_pages(endpoint, params):
+            for item in items:
+                if start_date and item.get(date_field):
+                    try:
+                        stamp = datetime.fromisoformat(item[date_field].replace('Z', '+00:00'))
+                        if stamp.tzinfo is None:
+                            stamp = stamp.replace(tzinfo=timezone.utc)
+                        if stamp < start_date:
+                            continue
+                    except (ValueError, AttributeError):
+                        pass
+                all_items.append(item)
+            if progress_callback:
+                progress_callback(len(all_items), total or len(all_items))
+        return all_items
+
+    def _collection_pages(self, endpoint, params=None, offset=0):
+        params = dict(params or {}, limit=self.ITEMS_PER_PAGE, offset=offset)
         while True:
-            data = self._make_request('GET', endpoint, params=params)
-            
+            data = self._make_request('GET', endpoint, params=dict(params))
             if not isinstance(data, dict) or not isinstance(data.get('data'), list):
                 raise ValueError('Slide API returned an invalid collection')
-            items = data['data']
-            if not items:
-                break
-            
-            # Check if we've reached our start date
-            if start_date:
-                filtered_items = []
-                reached_start = False
-                
-                for item in items:
-                    # Parse the date field (all dates from API are UTC ISO format)
-                    if date_field in item:
-                        try:
-                            date_str = item[date_field].replace('Z', '+00:00')
-                            item_date = datetime.fromisoformat(date_str)
-                            
-                            # Make sure both dates are timezone-aware for comparison
-                            if item_date.tzinfo is None:
-                                from datetime import timezone as tz
-                                item_date = item_date.replace(tzinfo=tz.utc)
-                            
-                            compare_start = start_date
-                            if compare_start.tzinfo is None:
-                                from datetime import timezone as tz
-                                compare_start = compare_start.replace(tzinfo=tz.utc)
-                            
-                            if item_date >= compare_start:
-                                filtered_items.append(item)
-                            else:
-                                reached_start = True
-                                break
-                        except Exception as e:
-                            # If we can't parse the date, include the item
-                            filtered_items.append(item)
-                    else:
-                        filtered_items.append(item)
-                
-                all_items.extend(filtered_items)
-                
-                if reached_start:
-                    break
-            else:
-                all_items.extend(items)
-            
-            # Update progress
-            if progress_callback:
-                pagination = data.get('pagination', {})
-                total = pagination.get('total', len(all_items))
-                progress_callback(len(all_items), total)
-            
-            # Check if there are more pages
+
             pagination = data.get('pagination', {})
-            next_offset = pagination.get('next_offset')
-            
-            if next_offset is None and len(items) < self.ITEMS_PER_PAGE:
-                break
-            if next_offset is None:
-                next_offset = params['offset'] + len(items)
-            if not isinstance(next_offset, int) or next_offset <= params['offset']:
+            if not isinstance(pagination, dict):
                 raise ValueError('Slide API returned invalid pagination')
-            if next_offset > 1000000:
-                raise ValueError('Slide collection exceeds the safety limit; narrow the date range')
+            next_offset = pagination.get('next_offset')
+            if next_offset is not None:
+                if type(next_offset) is not int or next_offset <= params['offset']:
+                    raise ValueError('Slide API returned invalid pagination')
+                if next_offset > 1000000:
+                    raise ValueError('Slide collection exceeds the safety limit; narrow the date range')
+            yield data['data'], next_offset, pagination.get('total')
+            if next_offset is None:
+                return
             params['offset'] = next_offset
-        
-        return all_items
 
     @staticmethod
     def _api_timestamp(value: datetime) -> str:
@@ -277,7 +312,8 @@ class SlideAPIClient:
     
     def get_backups(self, agent_id: Optional[str] = None, device_id: Optional[str] = None,
                    start_date: Optional[datetime] = None,
-                   progress_callback: Optional[Callable] = None) -> List[Dict[str, Any]]:
+                   progress_callback: Optional[Callable] = None,
+                   end_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """Fetch all backups"""
         params = {}
         if agent_id:
@@ -287,12 +323,15 @@ class SlideAPIClient:
         params.update({'sort_by': 'start_time', 'sort_asc': 'false'})
         if start_date:
             params['backup_started_after'] = self._api_timestamp(start_date)
+        if end_date:
+            params['backup_started_before'] = self._api_timestamp(end_date)
         return self._paginate_all('backup', params, progress_callback, start_date, 'started_at')
     
     def get_snapshots(self, agent_id: Optional[str] = None,
                      include_deleted: bool = True,
                      start_date: Optional[datetime] = None,
-                     progress_callback: Optional[Callable] = None) -> List[Dict[str, Any]]:
+                     progress_callback: Optional[Callable] = None,
+                     end_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """
         Fetch all snapshots including deleted ones.
         
@@ -312,6 +351,8 @@ class SlideAPIClient:
         if agent_id:
             params['agent_id'] = agent_id
         
+        if end_date:
+            params['backup_started_before'] = self._api_timestamp(end_date)
         all_snapshots = self._paginate_all('snapshot', params, progress_callback, 
                                           start_date, 'backup_started_at')
         
@@ -335,16 +376,26 @@ class SlideAPIClient:
                   start_date: Optional[datetime] = None,
                   progress_callback: Optional[Callable] = None) -> List[Dict[str, Any]]:
         """Fetch a stable audit window without chasing records created during the walk."""
-        params = {'sort_by': 'audit_time', 'sort_asc': 'false',
-                  'audit_time_before': self._api_timestamp(datetime.now(timezone.utc))}
-        if start_date:
-            params['audit_time_after'] = self._api_timestamp(start_date)
+        params = self._audit_params(start_date, datetime.now(timezone.utc))
         if action_name:
             params['audit_action_name'] = action_name
         if resource_type_name:
             params['audit_resource_type_name'] = resource_type_name
         return self._paginate_all('audit', params, progress_callback, start_date, 'audit_time')
-    
+
+    def get_audit_pages(self, start_date, end_date, offset):
+        return self._collection_pages('audit', self._audit_params(start_date, end_date), offset)
+
+    def _audit_params(self, start_date, end_date):
+        params = {
+            'sort_by': 'audit_time',
+            'sort_asc': 'false',
+            'audit_time_before': self._api_timestamp(end_date),
+        }
+        if start_date:
+            params['audit_time_after'] = self._api_timestamp(start_date)
+        return params
+
     def get_clients(self, progress_callback: Optional[Callable] = None) -> List[Dict[str, Any]]:
         """Fetch all clients"""
         return self._paginate_all('client', None, progress_callback)
@@ -383,5 +434,12 @@ class SlideAPIClient:
         try:
             self._make_request('GET', 'device', params={'limit': 1})
             return True
+        except SlideRateLimitError:
+            raise
         except (requests.HTTPError, InvalidAPIKeyError):
             return False
+        finally:
+            if self.request_counts:
+                logger.info('slide_api_validation requests=%d http_429=%d http_401=%d http_403=%d',
+                            self.request_counts['requests'], self.request_counts['http_429'],
+                            self.request_counts['http_401'], self.request_counts['http_403'])
